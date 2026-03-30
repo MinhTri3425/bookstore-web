@@ -1,7 +1,6 @@
 package com.example.book_webstore.dto;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -10,14 +9,13 @@ import lombok.Setter;
 
 @Getter
 @Setter
-@NoArgsConstructor
 @AllArgsConstructor
-public class BookDTO {
+@NoArgsConstructor
+public class OrderItemDTO {
     private Long id;
-    private String title;
-    private String description;
+    private BookDTO book;
+    private String bookTitle;
+    private int quantity;
     private BigDecimal price;
-    private AuthorDTO author;
-    private CategoryDTO category;
-    private List<BookImageDTO> images;
+    private CustomerOrderDTO order;
 }

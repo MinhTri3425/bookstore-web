@@ -9,7 +9,10 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class AuthorDTO {
+public class AddressDTO {
     private Long id;
-    private String name;
+    private String street;
+    private String city;
+    private String district;
+    private String ward;
 }

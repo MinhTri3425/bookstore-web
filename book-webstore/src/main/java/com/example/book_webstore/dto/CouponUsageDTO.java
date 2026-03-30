@@ -9,7 +9,10 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class AuthorDTO {
+public class CouponUsageDTO {
     private Long id;
-    private String name;
+    private CouponDTO coupon;
+    private UserDTO user;
+    private int usageCount;
+
 }

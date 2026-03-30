@@ -9,7 +9,11 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class AuthorDTO {
+public class BookImageDTO {
     private Long id;
-    private String name;
+    private String url;
+    private String altText;
+    private int sortOrder;
+    private BookDTO book;
+
 }

@@ -1,5 +1,7 @@
 package com.example.book_webstore.dto;
 
+import java.util.List;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -9,7 +11,7 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class AuthorDTO {
+public class CartDTO {
     private Long id;
-    private String name;
+    private List<CartItemDTO> items;
 }
