@@ -1,6 +1,5 @@
 package com.example.book_webstore.model;
 
-import java.math.BigDecimal;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
