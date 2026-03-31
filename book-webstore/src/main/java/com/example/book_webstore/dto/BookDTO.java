@@ -15,9 +15,10 @@ import lombok.Setter;
 public class BookDTO {
     private Long id;
     private String title;
+    private String isbn;
     private String description;
     private BigDecimal price;
-    private AuthorDTO author;
-    private CategoryDTO category;
+    private String authorId;
+    private String categoryId;
     private List<BookImageDTO> images;
 }

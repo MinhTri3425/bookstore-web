@@ -27,6 +27,13 @@ public class Shipping {
     @Enumerated(EnumType.STRING)
     private ShippingStatus status;
 
+    public enum ShippingMethod {
+        STANDARD, FAST, ECONOMY
+    }
+
+    @Enumerated(EnumType.STRING)
+    private ShippingMethod method;
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id", unique = true)
     @ToString.Exclude

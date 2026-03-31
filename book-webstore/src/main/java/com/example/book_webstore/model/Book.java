@@ -20,6 +20,8 @@ public class Book {
     private Long id;
 
     private String title;
+    @Column(unique = true)
+    private String isbn;
     private String description;
     private BigDecimal price;
 

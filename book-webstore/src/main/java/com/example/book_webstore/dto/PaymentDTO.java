@@ -20,6 +20,6 @@ public class PaymentDTO {
     private Payment.PaymentMethod method;
     private Payment.PaymentStatus status;
     private LocalDateTime paidAt;
-    private UserDTO user;
-    private CustomerOrderDTO order;
+    private String userId;
+    private String orderId;
 }

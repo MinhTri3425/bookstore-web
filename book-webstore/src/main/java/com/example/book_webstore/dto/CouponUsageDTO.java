@@ -11,8 +11,8 @@ import lombok.Setter;
 @NoArgsConstructor
 public class CouponUsageDTO {
     private Long id;
-    private CouponDTO coupon;
-    private UserDTO user;
+    private String couponId;
+    private String userId;
     private int usageCount;
 
 }

@@ -9,7 +9,7 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class Shipper {
+public class ShipperDTO {
     private Long id;
     private String name;
     private String phone;

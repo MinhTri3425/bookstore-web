@@ -14,6 +14,5 @@ public class BookImageDTO {
     private String url;
     private String altText;
     private int sortOrder;
-    private BookDTO book;
 
 }

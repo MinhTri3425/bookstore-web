@@ -28,10 +28,6 @@ public class CustomerOrder {
 
     @Enumerated(EnumType.STRING)
     private OrderStatus status;
-    private String street;
-    private String city;
-    private String district;
-    private String ward;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();

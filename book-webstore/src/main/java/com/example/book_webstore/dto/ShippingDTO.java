@@ -15,7 +15,8 @@ import lombok.Setter;
 public class ShippingDTO {
     private Long id;
     private Shipping.ShippingStatus status;
-    private ShipperDTO shipper;
-    private CustomerOrderDTO order;
+    private Shipping.ShippingMethod method;
+    private String shipperId;
+    private String orderId;
     private LocalDateTime createdAt;
 }

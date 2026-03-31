@@ -17,11 +17,7 @@ public class CustomerOrderDTO {
     private Long id;
     private LocalDateTime createdAt;
     private CustomerOrder.OrderStatus status;
-    private UserDTO user;
-    private String street;
-    private String city;
-    private String district;
-    private String ward;
+    private String userId;
     private List<OrderItemDTO> items;
 
 }
