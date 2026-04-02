@@ -24,4 +24,9 @@ public class OrderItem {
     @ToString.Exclude
     private Book book;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id")
+    @ToString.Exclude
+    private CustomerOrder order;
+
 }
