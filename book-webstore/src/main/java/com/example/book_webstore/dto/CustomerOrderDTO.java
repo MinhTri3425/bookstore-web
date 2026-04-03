@@ -19,5 +19,11 @@ public class CustomerOrderDTO {
     private CustomerOrder.OrderStatus status;
     private String userId;
     private List<OrderItemDTO> items;
+    private String statusCssClass;
+    private String createdAtDisplay;
+    private int itemCount;
+    private String totalAmountDisplay;
+    private String customerName;
+    private String shippingMethod;
 
 }
