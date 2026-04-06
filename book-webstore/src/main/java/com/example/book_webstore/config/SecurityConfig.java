@@ -14,7 +14,7 @@ public class SecurityConfig {
         http
                 .authorizeHttpRequests(auth -> auth
                         .dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR).permitAll()
-                        .requestMatchers("/", "/login", "/order/**", "/css/**", "/images/**", "/js/**").permitAll()
+                        .requestMatchers("/", "/login", "/order/**", "/admin/orders/**", "/my-orders/**", "/css/**", "/images/**", "/js/**").permitAll()
                         .anyRequest().authenticated())
                 .formLogin(form -> form
                         .defaultSuccessUrl("/order", true)
