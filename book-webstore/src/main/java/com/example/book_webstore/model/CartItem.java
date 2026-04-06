@@ -23,4 +23,7 @@ public class CartItem {
     @JoinColumn(name = "book_id")
     @ToString.Exclude
     private Book book;
+    @ManyToOne
+    @JoinColumn(name = "cart_id")
+    private Cart cart;
 }
