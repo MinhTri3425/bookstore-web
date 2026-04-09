@@ -5,8 +5,19 @@ import org.springframework.web.bind.annotation.GetMapping;
 
 @Controller
 public class HomeController {
-    @GetMapping("/home")
+
+    @GetMapping("/")
     public String home() {
-        return "home"; 
+        return "index";
+    }
+
+    @GetMapping("/home")
+    public String homePage() {
+        return "index";
+    }
+
+    @GetMapping("/admin")
+    public String adminRedirect() {
+        return "redirect:/admin/dashboard";
     }
 }
