@@ -19,4 +19,7 @@ public class BookImage {
     private String url;
     private String altText;
     private int sortOrder;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "book_id")
+    private Book book;
 }
