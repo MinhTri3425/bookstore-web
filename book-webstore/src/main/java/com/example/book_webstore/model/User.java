@@ -44,4 +44,7 @@ public class User {
     @JoinColumn(name = "user_id")
     private List<Address> addresses = new ArrayList<>();
 
+    @OneToMany(mappedBy = "customer")
+    private List<CustomerOrder> orders = new ArrayList<>();
+
 }
