@@ -1,5 +1,8 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="vi">
+<html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,14 +10,14 @@
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" th:href="@{/css/admin.css}">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/admin.css">
 </head>
 
 <body>
 
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
     <div class="container-fluid">
-        <a class="navbar-brand fw-bold" href="/admin/dashboard">
+        <a class="navbar-brand fw-bold" href="${pageContext.request.contextPath}/admin/dashboard">
             <i class="fas fa-cog me-2"></i> Admin Panel
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -22,14 +25,14 @@
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav me-auto">
-                <li class="nav-item"><a class="nav-link" href="/admin/dashboard">Dashboard</a></li>
-                <li class="nav-item"><a class="nav-link active" href="/admin/books">Quản lý sách</a></li>
-                <li class="nav-item"><a class="nav-link" href="/admin/authors">Tác giả</a></li>
-                <li class="nav-item"><a class="nav-link" href="/admin/categories">Danh mục</a></li>
+                <li class="nav-item"><a class="nav-link" href="${pageContext.request.contextPath}/admin/dashboard">Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link active" href="${pageContext.request.contextPath}/admin/books">Quản lý sách</a></li>
+                <li class="nav-item"><a class="nav-link" href="${pageContext.request.contextPath}/admin/authors">Tác giả</a></li>
+                <li class="nav-item"><a class="nav-link" href="${pageContext.request.contextPath}/admin/categories">Danh mục</a></li>
             </ul>
             <ul class="navbar-nav">
                 <li class="nav-item">
-                    <a class="nav-link" href="/"><i class="fas fa-home me-1"></i> Về trang chủ</a>
+                    <a class="nav-link" href="${pageContext.request.contextPath}/"><i class="fas fa-home me-1"></i> Về trang chủ</a>
                 </li>
             </ul>
         </div>
@@ -45,19 +48,19 @@
                     <h5 class="mb-0 fw-bold">Menu Quản lý</h5>
                 </div>
                 <div class="list-group list-group-flush sidebar-nav">
-                    <a href="/admin/dashboard" class="list-group-item list-group-item-action border-0 px-4 py-3">
+                    <a href="${pageContext.request.contextPath}/admin/dashboard" class="list-group-item list-group-item-action border-0 px-4 py-3">
                         <i class="fas fa-tachometer-alt me-2"></i> Dashboard
                     </a>
-                    <a href="/admin/books" class="list-group-item list-group-item-action border-0 px-4 py-3 active">
+                    <a href="${pageContext.request.contextPath}/admin/books" class="list-group-item list-group-item-action border-0 px-4 py-3 active">
                         <i class="fas fa-book me-2"></i> Quản lý sách
                     </a>
-                    <a href="/admin/books/add" class="list-group-item list-group-item-action border-0 px-4 py-3">
+                    <a href="${pageContext.request.contextPath}/admin/books/add" class="list-group-item list-group-item-action border-0 px-4 py-3">
                         <i class="fas fa-plus me-2"></i> Thêm sách mới
                     </a>
-                    <a href="/admin/authors" class="list-group-item list-group-item-action border-0 px-4 py-3">
+                    <a href="${pageContext.request.contextPath}/admin/authors" class="list-group-item list-group-item-action border-0 px-4 py-3">
                         <i class="fas fa-user me-2"></i> Tác giả
                     </a>
-                    <a href="/admin/categories" class="list-group-item list-group-item-action border-0 px-4 py-3">
+                    <a href="${pageContext.request.contextPath}/admin/categories" class="list-group-item list-group-item-action border-0 px-4 py-3">
                         <i class="fas fa-tags me-2"></i> Danh mục
                     </a>
                 </div>
@@ -68,27 +71,31 @@
 
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h2 class="fw-bold text-dark"><i class="fas fa-book me-2 text-primary"></i>Quản lý sách</h2>
-                <a href="/admin/books/add" class="btn btn-primary shadow-sm px-4">
+                <a href="${pageContext.request.contextPath}/admin/books/add" class="btn btn-primary shadow-sm px-4">
                     <i class="fas fa-plus me-2"></i>Thêm sách
                 </a>
             </div>
 
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body p-4">
-                    <form method="get" action="/admin/books" class="row g-3">
+                    <form method="get" action="${pageContext.request.contextPath}/admin/books" class="row g-3">
                         <div class="col-md-4">
-                            <input type="text" name="keyword" class="form-control" placeholder="Tìm kiếm tên sách, ISBN..." th:value="${keyword}">
+                            <input type="text" name="keyword" class="form-control" placeholder="Tìm kiếm tên sách, ISBN..." value="${keyword}">
                         </div>
                         <div class="col-md-3">
                             <select name="categoryId" class="form-select">
                                 <option value="">Tất cả danh mục</option>
-                                <option th:each="c : ${categories}" th:value="${c.id}" th:text="${c.name}" th:selected="${categoryId == c.id}"></option>
+                                <c:forEach var="c" items="${categories}">
+                                    <option value="${c.id}" ${categoryId == c.id ? 'selected' : ''}>${c.name}</option>
+                                </c:forEach>
                             </select>
                         </div>
                         <div class="col-md-3">
                             <select name="authorId" class="form-select">
                                 <option value="">Tất cả tác giả</option>
-                                <option th:each="a : ${authors}" th:value="${a.id}" th:text="${a.name}" th:selected="${authorId == a.id}"></option>
+                                <c:forEach var="a" items="${authors}">
+                                    <option value="${a.id}" ${authorId == a.id ? 'selected' : ''}>${a.name}</option>
+                                </c:forEach>
                             </select>
                         </div>
                         <div class="col-md-2">
@@ -115,44 +122,49 @@
                         </tr>
                         </thead>
                         <tbody>
-                        <tr th:each="book : ${books}">
-                            <td class="px-4 text-muted" th:text="${book.id}"></td>
-                            <td>
-                                <div class="fw-bold text-dark" th:text="${book.title}"></div>
-                                <div class="small text-muted">
-                                    <i class="fas fa-user-edit me-1"></i> <span th:text="${book.authorName}"></span> | 
-                                    <span class="ms-1">ISBN: <span th:text="${book.isbn}"></span></span>
-                                </div>
-                            </td>
-                            <td>
-                                <span class="text-danger fw-bold" th:text="${#numbers.formatDecimal(book.price,1,'COMMA',0,'POINT')} + ' ₫'"></span>
-                            </td>
-                            <td th:text="${book.stock != null ? book.stock : 0}"></td>
-                            <td>
-                                <span class="badge rounded-pill"
-                                      th:classappend="${book.stock == 0} ? 'bg-danger' : (${book.stock <= 10} ? 'bg-warning text-dark' : 'bg-success')"
-                                      th:text="${book.stock == 0 ? 'Hết hàng' : (book.stock <= 10 ? 'Sắp hết' : 'Còn hàng')}">
-                                </span>
-                            </td>
-                            <td class="text-center">
-                                <div class="btn-group btn-group-sm shadow-sm">
-                                    <a th:href="@{'/admin/books/edit?id=' + ${book.id}}" class="btn btn-outline-primary" title="Chỉnh sửa">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <button type="button" class="btn btn-outline-danger" 
-                                            th:attr="data-id=${book.id}, data-title=${book.title}"
-                                            onclick="confirmDelete(this.dataset.id, this.dataset.title)" title="Xóa">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr th:if="${#lists.isEmpty(books)}">
-                            <td colspan="6" class="text-center py-5 text-muted">
-                                <i class="fas fa-box-open fa-3x mb-3 d-block op-3"></i>
-                                Không tìm thấy cuốn sách nào phù hợp.
-                            </td>
-                        </tr>
+                        <c:forEach var="book" items="${books}">
+                            <tr>
+                                <td class="px-4 text-muted">${book.id}</td>
+                                <td>
+                                    <div class="fw-bold text-dark">${book.title}</div>
+                                    <div class="small text-muted">
+                                        <i class="fas fa-user-edit me-1"></i> ${book.authorName} | 
+                                        <span class="ms-1">ISBN: ${book.isbn}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="text-danger fw-bold">
+                                        <fmt:formatNumber value="${book.price}" pattern="#,###"/> ₫
+                                    </span>
+                                </td>
+                                <td>${not empty book.stock ? book.stock : 0}</td>
+                                <td>
+                                    <c:set var="badgeClass" value="${book.stock == 0 ? 'bg-danger' : (book.stock <= 10 ? 'bg-warning text-dark' : 'bg-success')}" />
+                                    <c:set var="statusText" value="${book.stock == 0 ? 'Hết hàng' : (book.stock <= 10 ? 'Sắp hết' : 'Còn hàng')}" />
+                                    <span class="badge rounded-pill ${badgeClass}">${statusText}</span>
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-sm shadow-sm">
+                                        <a href="${pageContext.request.contextPath}/admin/books/edit?id=${book.id}" class="btn btn-outline-primary" title="Chỉnh sửa">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-outline-danger" 
+                                                onclick="confirmDelete('${book.id}', '${book.title}')" title="Xóa">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </c:forEach>
+                        
+                        <c:if test="${empty books}">
+                            <tr>
+                                <td colspan="6" class="text-center py-5 text-muted">
+                                    <i class="fas fa-box-open fa-3x mb-3 d-block op-3"></i>
+                                    Không tìm thấy cuốn sách nào phù hợp.
+                                </td>
+                            </tr>
+                        </c:if>
                         </tbody>
                     </table>
                 </div>
@@ -169,7 +181,7 @@
                 <h5 class="modal-title">Xác nhận xóa sách</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form id="deleteForm" method="post" th:action="@{/admin/books/delete}">
+            <form id="deleteForm" method="post" action="${pageContext.request.contextPath}/admin/books/delete">
                 <div class="modal-body py-4 text-center">
                     Bạn có chắc chắn muốn xóa cuốn sách "<strong id="deleteBookTitle" class="text-danger"></strong>" không?
                     <input type="hidden" id="deleteBookId" name="id">

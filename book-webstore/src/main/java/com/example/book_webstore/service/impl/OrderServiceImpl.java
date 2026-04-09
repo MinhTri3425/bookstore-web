@@ -66,7 +66,8 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public Page<CustomerOrderDTO> getAdminOrderPage(String orderId, CustomerOrder.OrderStatus status, int page, int size) {
+    public Page<CustomerOrderDTO> getAdminOrderPage(String orderId, CustomerOrder.OrderStatus status, int page,
+            int size) {
         Pageable pageable = buildPageable(page, size);
         String normalizedOrderId = normalize(orderId);
         Page<CustomerOrder> orderPage;
@@ -90,7 +91,8 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public Page<CustomerOrderDTO> getCustomerOrderPage(Long customerId, CustomerOrder.OrderStatus status, int page, int size) {
+    public Page<CustomerOrderDTO> getCustomerOrderPage(Long customerId, CustomerOrder.OrderStatus status, int page,
+            int size) {
         if (customerId == null) {
             return Page.empty(buildPageable(page, size));
         }
@@ -189,7 +191,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public List<UserDTO> getCustomerOptions() {
-        return userRepository.findByRoleOrderByNameAsc(User.Role.CUSTOMER).stream()
+        return userRepository.findByRoleOrderByNameAsc(User.Role.USER).stream()
                 .map(this::toUserDto)
                 .toList();
     }
@@ -206,7 +208,8 @@ public class OrderServiceImpl implements OrderService {
         return PageRequest.of(Math.max(page, 0), Math.max(size, 1), Sort.by(Sort.Direction.DESC, "id"));
     }
 
-    private Page<CustomerOrder> findAdminByExactOrderId(String orderId, CustomerOrder.OrderStatus status, Pageable pageable) {
+    private Page<CustomerOrder> findAdminByExactOrderId(String orderId, CustomerOrder.OrderStatus status,
+            Pageable pageable) {
         Long parsedId = parseOrderId(orderId, pageable);
         if (parsedId == null) {
             return new PageImpl<>(Collections.emptyList(), pageable, 0);
@@ -257,9 +260,12 @@ public class OrderServiceImpl implements OrderService {
         dto.setItemCount(order.getItems().stream().mapToInt(OrderItem::getQuantity).sum());
         dto.setTotalAmountDisplay(formatAmount(resolveAmount(order, payment)));
         dto.setCustomerName(customer != null && customer.getName() != null ? customer.getName() : NOT_AVAILABLE);
-        dto.setShippingMethod(shipping != null && shipping.getMethod() != null ? shipping.getMethod().name() : NOT_AVAILABLE);
-        dto.setPaymentStatusDisplay(payment != null && payment.getStatus() != null ? payment.getStatus().name() : NOT_AVAILABLE);
-        dto.setShippingStatusDisplay(shipping != null && shipping.getStatus() != null ? shipping.getStatus().name() : NOT_AVAILABLE);
+        dto.setShippingMethod(
+                shipping != null && shipping.getMethod() != null ? shipping.getMethod().name() : NOT_AVAILABLE);
+        dto.setPaymentStatusDisplay(
+                payment != null && payment.getStatus() != null ? payment.getStatus().name() : NOT_AVAILABLE);
+        dto.setShippingStatusDisplay(
+                shipping != null && shipping.getStatus() != null ? shipping.getStatus().name() : NOT_AVAILABLE);
         dto.setShipperName(shipping != null && shipping.getShipper() != null && shipping.getShipper().getName() != null
                 ? shipping.getShipper().getName()
                 : NOT_AVAILABLE);
@@ -283,24 +289,36 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private OrderItemDTO toItemDto(OrderItem item) {
+
         String title = item.getBook() != null && item.getBook().getTitle() != null
                 ? item.getBook().getTitle()
                 : "Untitled book";
+
         OrderItemDTO dto = new OrderItemDTO();
         dto.setId(item.getId());
         dto.setQuantity(item.getQuantity());
         dto.setBookTitle(title);
+
         if (item.getBook() != null) {
-            dto.setBook(new BookDTO(
-                    item.getBook().getId(),
-                    item.getBook().getTitle(),
-                    item.getBook().getIsbn(),
-                    item.getBook().getDescription(),
-                    item.getBook().getPrice(),
-                    item.getBook().getAuthor() != null ? String.valueOf(item.getBook().getAuthor().getId()) : null,
-                    item.getBook().getCategory() != null ? String.valueOf(item.getBook().getCategory().getId()) : null,
-                    List.of()));
+
+            var book = item.getBook();
+
+            dto.setBook(
+                    BookDTO.builder()
+                            .id(book.getId())
+                            .title(book.getTitle())
+                            .isbn(book.getIsbn())
+                            .description(book.getDescription())
+                            .price(book.getPrice())
+                            .authorId(book.getAuthor() != null ? book.getAuthor().getId() : null)
+                            .authorName(book.getAuthor() != null ? book.getAuthor().getName() : null)
+                            .categoryId(book.getCategory() != null ? book.getCategory().getId() : null)
+                            .categoryName(book.getCategory() != null ? book.getCategory().getName() : null)
+                            .images(List.of())
+                            .stock(null)
+                            .build());
         }
+
         return dto;
     }
 
@@ -372,7 +390,8 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
-    private boolean isAllowedTransition(CustomerOrder.OrderStatus currentStatus, CustomerOrder.OrderStatus targetStatus) {
+    private boolean isAllowedTransition(CustomerOrder.OrderStatus currentStatus,
+            CustomerOrder.OrderStatus targetStatus) {
         if (currentStatus == null || targetStatus == null || currentStatus == targetStatus) {
             return false;
         }

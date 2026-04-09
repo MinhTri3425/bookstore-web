@@ -21,12 +21,14 @@ public class AdminAuthorController {
     @GetMapping
     public String listAuthors(Model model) {
         model.addAttribute("authors", authorService.getAllAuthors());
-        return "admin/authors"; // Trỏ đến file authors.html trong folder admin
+        // Trỏ đến /WEB-INF/views/admin/authors.jsp (Nhờ cấu hình Prefix/Suffix)
+        return "admin/authors";
     }
 
     // 2. Form thêm mới
     @GetMapping("/add")
     public String addAuthorForm(Model model) {
+        // Tên "author" này phải khớp chính xác với modelAttribute trong JSP
         model.addAttribute("author", new AuthorDTO());
         return "admin/author-form";
     }
@@ -35,16 +37,18 @@ public class AdminAuthorController {
     @GetMapping("/edit")
     public String editAuthorForm(@RequestParam Long id, Model model) {
         AuthorDTO author = authorService.getAuthorById(id);
-        if (author == null)
+        if (author == null) {
             return "redirect:/admin/authors";
+        }
 
         model.addAttribute("author", author);
         return "admin/author-form";
     }
 
     // 4. Lưu dữ liệu (Hợp nhất Add và Update)
+    // THÊM ĐỊNH DANH "author" vào @ModelAttribute để JSP nhận diện chính xác
     @PostMapping("/save")
-    public String saveAuthor(@ModelAttribute AuthorDTO author, RedirectAttributes ra) {
+    public String saveAuthor(@ModelAttribute("author") AuthorDTO author, RedirectAttributes ra) {
         try {
             if (author.getId() != null) {
                 authorService.updateAuthor(author.getId(), author);
@@ -66,7 +70,7 @@ public class AdminAuthorController {
             authorService.deleteAuthor(id);
             ra.addFlashAttribute("successMessage", "Đã xóa tác giả thành công!");
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
-            // Lỗi này xảy ra khi tác giả vẫn còn sách liên kết
+            // Xử lý khi tác giả đang bị ràng buộc khóa ngoại (có sách)
             ra.addFlashAttribute("errorMessage", "Không thể xóa: Tác giả này đang có sách trong hệ thống!");
         } catch (Exception e) {
             ra.addFlashAttribute("errorMessage", "Lỗi hệ thống: " + e.getMessage());

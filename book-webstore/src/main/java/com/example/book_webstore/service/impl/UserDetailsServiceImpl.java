@@ -22,7 +22,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         // Tìm user bằng email
         User user = userRepository.findByEmail(username);
-        
+
         if (user == null) {
             throw new UsernameNotFoundException("Sai tên đăng nhập hoặc mật khẩu");
         }
@@ -33,7 +33,6 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         return new org.springframework.security.core.userdetails.User(
                 user.getEmail(),
                 user.getPassword(),
-                Collections.singletonList(authority)
-        );
+                Collections.singletonList(authority));
     }
 }

@@ -1,13 +1,16 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="vi">
+<html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title th:text="${book.title} + ' - Cửa hàng Sách'">Chi tiết sách</title>
+    <title>${book.title} - Cửa hàng Sách</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css">
     
     <style>
         .cursor-pointer { cursor: pointer; }
@@ -20,16 +23,12 @@
         .thumb-container:hover { border-color: #0d6efd !important; }
         .active-thumb { border-color: #0d6efd !important; box-shadow: 0 0 5px rgba(13, 110, 253, 0.5); }
         
-        /* Tùy chỉnh Carousel */
-        #bookCarousel {
-            background-color: #fff;
-        }
+        #bookCarousel { background-color: #fff; }
         .carousel-item img {
             max-height: 500px;
             width: 100%;
-            object-fit: contain; /* Giữ nguyên tỉ lệ ảnh không bị méo */
+            object-fit: contain;
         }
-        /* Làm cho mũi tên dễ thấy hơn */
         .carousel-control-prev-icon, .carousel-control-next-icon {
             background-color: rgba(0,0,0,0.3);
             border-radius: 50%;
@@ -40,9 +39,9 @@
     </style>
 </head>
 <body>
-    <div th:replace="fragments/header :: ~{this}"></div>
-
-    <div th:replace="fragments/breadcrumb :: ~{this}"></div>
+    <%-- Thay thế fragments bằng jsp:include --%>
+    <jsp:include page="../fragments/header.jsp" />
+    <jsp:include page="../fragments/breadcrumb.jsp" />
 
     <section class="py-5 bg-light">
         <div class="container">
@@ -50,18 +49,20 @@
                 <div class="col-lg-5 mb-4">
                     <div id="bookCarousel" class="carousel slide border rounded shadow-sm" data-bs-ride="false">
                         <div class="carousel-inner p-2">
-                            <div th:each="image, iterStat : ${book.images}" 
-                                 class="carousel-item" 
-                                 th:classappend="${iterStat.first} ? 'active'">
-                                <img th:src="${image.url}" class="d-block mx-auto" alt="Book Image">
-                            </div>
+                            <c:forEach var="image" items="${book.images}" varStatus="iterStat">
+                                <div class="carousel-item ${iterStat.first ? 'active' : ''}">
+                                    <img src="${image.url}" class="d-block mx-auto" alt="Book Image">
+                                </div>
+                            </c:forEach>
                             
-                            <div th:if="${book.images == null or book.images.empty}" class="carousel-item active">
-                                <img th:src="@{/images/default-book.png}" class="d-block mx-auto" alt="Default Cover">
-                            </div>
+                            <c:if test="${empty book.images}">
+                                <div class="carousel-item active">
+                                    <img src="${pageContext.request.contextPath}/images/default-book.png}" class="d-block mx-auto" alt="Default Cover">
+                                </div>
+                            </c:if>
                         </div>
 
-                        <th:block th:if="${book.images != null and book.images.size() > 1}">
+                        <c:if test="${not empty book.images and book.images.size() > 1}">
                             <button class="carousel-control-prev" type="button" data-bs-target="#bookCarousel" data-bs-slide="prev">
                                 <span class="carousel-control-prev-icon" aria-hidden="true"></span>
                                 <span class="visually-hidden">Previous</span>
@@ -70,57 +71,63 @@
                                 <span class="carousel-control-next-icon" aria-hidden="true"></span>
                                 <span class="visually-hidden">Next</span>
                             </button>
-                        </th:block>
+                        </c:if>
                     </div>
 
-                    <div class="row mt-3 g-2" th:if="${book.images != null and book.images.size() > 1}">
-                        <div class="col-3" th:each="image, iterStat : ${book.images}">
-                            <div class="thumb-container p-1 cursor-pointer" 
-                                 th:classappend="${iterStat.first} ? 'active-thumb'"
-                                 th:attr="onclick='goToSlide(' + ${iterStat.index} + ', this)'">
-                                <img th:src="${image.url}" class="img-fluid rounded" 
-                                     style="height: 70px; width: 100%; object-fit: cover;">
+                    <div class="row mt-3 g-2" title="Album ảnh">
+                        <c:forEach var="image" items="${book.images}" varStatus="iterStat">
+                            <div class="col-3">
+                                <div class="thumb-container p-1 cursor-pointer ${iterStat.first ? 'active-thumb' : ''}" 
+                                     onclick="goToSlide('${iterStat.index}', this)">
+                                    <img src="${image.url}" class="img-fluid rounded" 
+                                         style="height: 70px; width: 100%; object-fit: cover;">
+                                </div>
                             </div>
-                        </div>
+                        </c:forEach>
                     </div>
                 </div>
 
                 <div class="col-lg-7">
                     <div class="ps-lg-4">
-                        <h1 class="fw-bold mb-3" th:text="${book.title}">Tên sách</h1>
+                        <h1 class="fw-bold mb-3">${book.title}</h1>
 
                         <div class="mb-3">
                             <span class="text-muted"><i class="fas fa-user me-1"></i> Tác giả: </span>
-                            <span class="fw-bold" th:text="${book.authorName}">Tên tác giả</span>
+                            <span class="fw-bold">${book.authorName}</span>
                             <span class="mx-2 text-muted">|</span>
                             <span class="text-muted"><i class="fas fa-tag me-1"></i> Danh mục: </span>
-                            <span class="fw-bold" th:text="${book.categoryName}">Tên danh mục</span>
+                            <span class="fw-bold">${book.categoryName}</span>
                         </div>
 
                         <div class="price-box p-3 bg-white rounded shadow-sm mb-4">
-                            <div class="text-danger h2 fw-bold mb-0" 
-                                 th:text="${#numbers.formatDecimal(book.price, 1, 'COMMA', 0, 'POINT')} + ' ₫'">
-                                0 ₫
+                            <div class="text-danger h2 fw-bold mb-0">
+                                <fmt:formatNumber value="${book.price}" pattern="#,###"/> ₫
                             </div>
-                            <small class="text-muted">ISBN: <span th:text="${book.isbn}"></span></small>
+                            <small class="text-muted">ISBN: ${book.isbn}</small>
                         </div>
 
                         <div class="mb-4">
-                            <span th:if="${book.stock > 0}" class="badge bg-success p-2 px-3">
-                                <i class="fas fa-check me-1"></i> Còn hàng (<span th:text="${book.stock}"></span> cuốn)
-                            </span>
-                            <span th:unless="${book.stock > 0}" class="badge bg-danger p-2 px-3">
-                                <i class="fas fa-times me-1"></i> Hết hàng
-                            </span>
+                            <c:choose>
+                                <c:when test="${book.stock > 0}">
+                                    <span class="badge bg-success p-2 px-3">
+                                        <i class="fas fa-check me-1"></i> Còn hàng (${book.stock} cuốn)
+                                    </span>
+                                </c:when>
+                                <c:otherwise>
+                                    <span class="badge bg-danger p-2 px-3">
+                                        <i class="fas fa-times me-1"></i> Hết hàng
+                                    </span>
+                                </c:otherwise>
+                            </c:choose>
                         </div>
 
                         <div class="d-flex gap-3">
                             <div class="input-group" style="width: 130px;">
-                                <button class="btn btn-outline-secondary" type="button">-</button>
-                                <input type="text" class="form-control text-center" value="1">
-                                <button class="btn btn-outline-secondary" type="button">+</button>
+                                <button class="btn btn-outline-secondary" type="button" onclick="this.parentNode.querySelector('input').stepDown()">-</button>
+                                <input type="number" class="form-control text-center" value="1" min="1" max="${book.stock}">
+                                <button class="btn btn-outline-secondary" type="button" onclick="this.parentNode.querySelector('input').stepUp()">+</button>
                             </div>
-                            <button class="btn btn-primary btn-lg px-5 flex-grow-1" th:disabled="${book.stock == 0}">
+                            <button class="btn btn-primary btn-lg px-5 flex-grow-1" ${book.stock == 0 ? 'disabled' : ''}>
                                 <i class="fas fa-shopping-cart me-2"></i> Thêm vào giỏ hàng
                             </button>
                         </div>
@@ -133,9 +140,7 @@
                     <div class="card border-0 shadow-sm">
                         <div class="card-body p-4">
                             <h4 class="fw-bold border-bottom pb-3 mb-3">Mô tả sản phẩm</h4>
-                            <p th:text="${book.description}" class="text-secondary lh-lg" style="white-space: pre-line;">
-                                Nội dung...
-                            </p>
+                            <p class="text-secondary lh-lg" style="white-space: pre-line;">${book.description}</p>
                         </div>
                     </div>
                 </div>
@@ -143,21 +148,14 @@
         </div>
     </section>
 
-    <div th:replace="fragments/footer :: ~{this}"></div>
+    <jsp:include page="../fragments/footer.jsp" />
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         function goToSlide(index, element) {
-            // 1. Tìm Carousel bằng ID
             const myCarouselEl = document.getElementById('bookCarousel');
-            
-            // 2. Khởi tạo Instance của Bootstrap
             const carousel = bootstrap.Carousel.getOrCreateInstance(myCarouselEl);
-            
-            // 3. Chuyển slide
             carousel.to(index);
-            
-            // 4. Highlight thumbnail
             updateThumbnailActive(index);
         }
 
@@ -172,7 +170,6 @@
             });
         }
 
-        // Đồng bộ thumbnail khi người dùng bấm mũi tên của Carousel
         document.addEventListener('DOMContentLoaded', function() {
             const myCarousel = document.getElementById('bookCarousel');
             if (myCarousel) {

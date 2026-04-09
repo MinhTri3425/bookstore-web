@@ -1,4 +1,4 @@
-package com.example.book_webstore.service.Implement;
+package com.example.book_webstore.service.impl;
 
 import com.example.book_webstore.dto.BookDTO;
 import com.example.book_webstore.model.Author;

@@ -1,51 +1,40 @@
 /* =================================================
-   GLOBAL BASE (from develop)
+   1. GLOBAL VARIABLES & BASE
 ================================================= */
 :root {
-    --primary-color: #007bff;
-    --secondary-color: #6c757d;
-    --success-color: #28a745;
-    --danger-color: #dc3545;
-    --warning-color: #ffc107;
-    --light-color: #f8f9fa;
-    --dark-color: #343a40;
-    --border-radius: 0.5rem;
-    --box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-    --box-shadow-lg: 0 1rem 3rem rgba(0, 0, 0, 0.175);
-
-    /* Order module variables */
-    --bg: #f5f6f8;
-    --surface: #ffffff;
-    --surface-alt: #f8fafc;
-    --text: #1f2937;
-    --muted: #6b7280;
-    --border: #d9dee7;
-    --border-strong: #c5ccd8;
-    --primary: #2563eb;
+    /* Main Theme Colors */
+    --primary-color: #2563eb;
     --primary-dark: #1d4ed8;
-    --danger: #dc2626;
-    --danger-dark: #b91c1c;
+    --secondary-color: #64748b;
+    --success-color: #10b981;
+    --danger-color: #ef4444;
+    --warning-color: #f59e0b;
+    --light-color: #f8fafc;
+    --dark-color: #1e293b;
+    
+    /* UI Elements */
+    --bg-body: #f1f5f9;
+    --surface: #ffffff;
+    --border-color: #e2e8f0;
+    --text-main: #334155;
+    --text-muted: #64748b;
+    
+    /* Layout constants */
+    --border-radius: 0.5rem;
+    --box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    --box-shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
 
-    --success-bg: #ecfdf3;
-    --success-border: #a7f3d0;
-    --success-text: #047857;
-
+    /* Status Colors (For Orders module) */
     --pending-bg: #fff7ed;
     --pending-text: #b45309;
-
     --confirmed-bg: #eff6ff;
     --confirmed-text: #1d4ed8;
-
     --completed-bg: #ecfdf3;
     --completed-text: #047857;
-
     --cancelled-bg: #fef2f2;
     --cancelled-text: #b91c1c;
 }
 
-/* =================================================
-   BASE STYLES
-================================================= */
 * {
     box-sizing: border-box;
 }
@@ -53,85 +42,72 @@
 body {
     margin: 0;
     min-height: 100vh;
-    font-family: "Segoe UI", Arial, sans-serif;
+    font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     font-size: 14px;
-    line-height: 1.5;
-    color: var(--text, #333);
-    background: var(--bg, #f5f5f5);
+    line-height: 1.6;
+    color: var(--text-main);
+    background-color: var(--bg-body);
 }
 
-img {
-    display: block;
-    max-width: 100%;
+a {
+    text-decoration: none;
+    transition: color 0.2s ease;
 }
 
-button, a, input, select {
-    font: inherit;
-}
-
-/* Global transition (from develop) */
-* {
-    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+/* Global transitions cho buttons và links */
+button, .btn, a {
+    transition: all 0.2s ease;
 }
 
 /* =================================================
-   ORDER MANAGEMENT MODULE (scoped)
+   2. TRUNCATION & LINE-CLAMP (Compatibility Fix)
 ================================================= */
-.order-page {
-    width: min(1240px, calc(100% - 32px));
-    margin: 0 auto;
-    padding: 24px 0 40px;
+
+/* Áp dụng cho tiêu đề sách - giới hạn 2 dòng */
+.book-title, .card-title {
+    display: -webkit-box;           /* Bắt buộc cho -webkit-line-clamp */
+    -webkit-box-orient: vertical;   /* Bắt buộc cho -webkit-line-clamp */
+    -webkit-line-clamp: 2;          /* Giới hạn số dòng cho Chrome/Safari/Edge */
+    line-clamp: 2;                  /* Thuộc tính tiêu chuẩn cho tương lai */
+    overflow: hidden;
+    text-overflow: ellipsis;        /* Hiện dấu ba chấm (...) */
+    min-height: 2.8em;              /* Giữ khung tiêu đề đều nhau */
+    font-weight: bold;
+    margin-bottom: 0.5rem;
 }
 
-/* Card system */
-.card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    box-shadow: none;
+/* Áp dụng cho mô tả sách - giới hạn 3 dòng */
+.book-description {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    min-height: 4.2em;              /* Giữ khung mô tả ổn định cho Grid layout */
+    margin-bottom: 1rem;
 }
-
-/* Headers */
-.page-header,
-.filter-card,
-.table-card,
-.detail-card,
-.detail-header {
-    padding: 20px 24px;
-}
-
-/* Buttons (order system) */
-.primary-btn {
-    background: var(--primary);
-    color: #fff;
-}
-
-/* Status chips */
-.status-pending { background: var(--pending-bg); color: var(--pending-text); }
-.status-confirmed { background: var(--confirmed-bg); color: var(--confirmed-text); }
-.status-completed { background: var(--completed-bg); color: var(--completed-text); }
-.status-cancelled { background: var(--cancelled-bg); color: var(--cancelled-text); }
 
 /* =================================================
-   BOOKSTORE UI (from develop)
+   3. BOOKSTORE UI & GRID SYSTEM
 ================================================= */
 
-/* Hero */
 .hero-section {
-    background: linear-gradient(135deg, #007bff 0%, #00c6ff 100%);
-    padding: 3rem 0;
+    background: linear-gradient(135deg, var(--primary-color) 0%, #00c6ff 100%);
+    padding: 3.5rem 0;
     margin-bottom: 2rem;
-    color: white;
 }
 
-/* Book card */
 .book-card {
     border: none;
     border-radius: var(--border-radius);
-    overflow: hidden;
+    background: var(--surface);
     display: flex;
     flex-direction: column;
-    transition: all 0.3s ease;
+    height: 100%;                   /* Card luôn full chiều cao của cột */
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .book-card:hover {
@@ -139,41 +115,103 @@ button, a, input, select {
     box-shadow: var(--box-shadow-lg);
 }
 
-/* Image */
 .book-image-wrapper {
-    height: 250px;
+    position: relative;
+    height: 300px;
     overflow: hidden;
+    background-color: #f8f9fa;
 }
 
-/* Buttons */
-.btn {
+.book-image-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+}
+
+/* Overlay hiển thị khi hover ảnh */
+.book-overlay {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(30, 41, 59, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 2;
+}
+
+.book-image-wrapper:hover .book-overlay {
+    opacity: 1;
+}
+
+.book-card .card-body {
+    flex-grow: 1;                   /* Đẩy footer/giá xuống dưới cùng */
+    display: flex;
+    flex-direction: column;
+    padding: 1.25rem;
+}
+
+.book-card .mt-auto {
+    margin-top: auto;               /* Đảm bảo giá và nút luôn thẳng hàng ngang */
+}
+
+/* =================================================
+   4. ADMIN SIDEBAR & FORM
+================================================= */
+
+.sidebar-nav .list-group-item {
+    border: none;
+    padding: 0.85rem 1.25rem;
+    margin-bottom: 4px;
     border-radius: var(--border-radius);
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
 }
 
-/* Pagination */
-.page-link {
+.sidebar-nav .list-group-item i {
+    width: 24px;
+    margin-right: 8px;
+    text-align: center;
+}
+
+.sidebar-nav .list-group-item.active {
+    background-color: var(--primary-color);
+    color: #fff;
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2);
+}
+
+.sidebar-nav .list-group-item:hover:not(.active) {
+    background-color: #f1f5f9;
     color: var(--primary-color);
 }
 
 /* =================================================
-   RESPONSIVE
+   5. ORDER STATUS BADGES
 ================================================= */
-@media (max-width: 768px) {
-    .hero-section {
-        padding: 2rem 0;
-    }
 
-    .book-image-wrapper {
-        height: 200px;
-    }
+.status-badge {
+    padding: 0.4rem 0.8rem;
+    border-radius: 2rem;
+    font-weight: 600;
+    font-size: 0.75rem;
 }
 
-@media (max-width: 576px) {
-    .hero-section {
-        padding: 1.5rem 0;
-    }
+.status-pending   { background: var(--pending-bg); color: var(--pending-text); }
+.status-confirmed { background: var(--confirmed-bg); color: var(--confirmed-text); }
+.status-completed { background: var(--completed-bg); color: var(--completed-text); }
+.status-cancelled { background: var(--cancelled-bg); color: var(--cancelled-text); }
 
-    .book-image-wrapper {
-        height: 150px;
-    }
+/* =================================================
+   6. RESPONSIVE
+================================================= */
+@media (max-width: 992px) {
+    .book-image-wrapper { height: 250px; }
+}
+
+@media (max-width: 768px) {
+    .hero-section { padding: 2.5rem 0; }
+    .book-image-wrapper { height: 200px; }
 }
