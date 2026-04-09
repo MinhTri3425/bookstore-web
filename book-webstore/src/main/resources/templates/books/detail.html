@@ -3,138 +3,139 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title th:text="${book.title} + ' - Cửa hàng Sách'">Chi tiết sách - Cửa hàng Sách</title>
+    <title th:text="${book.title} + ' - Cửa hàng Sách'">Chi tiết sách</title>
 
-    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <!-- Custom CSS -->
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    
+    <style>
+        .cursor-pointer { cursor: pointer; }
+        .thumb-container { 
+            transition: all 0.2s; 
+            border: 2px solid #dee2e6; 
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .thumb-container:hover { border-color: #0d6efd !important; }
+        .active-thumb { border-color: #0d6efd !important; box-shadow: 0 0 5px rgba(13, 110, 253, 0.5); }
+        
+        /* Tùy chỉnh Carousel */
+        #bookCarousel {
+            background-color: #fff;
+        }
+        .carousel-item img {
+            max-height: 500px;
+            width: 100%;
+            object-fit: contain; /* Giữ nguyên tỉ lệ ảnh không bị méo */
+        }
+        /* Làm cho mũi tên dễ thấy hơn */
+        .carousel-control-prev-icon, .carousel-control-next-icon {
+            background-color: rgba(0,0,0,0.3);
+            border-radius: 50%;
+            background-size: 50%;
+            width: 3rem;
+            height: 3rem;
+        }
+    </style>
 </head>
 <body>
-    <!-- Header -->
     <div th:replace="fragments/header :: ~{this}"></div>
 
-    <!-- Breadcrumb -->
     <div th:replace="fragments/breadcrumb :: ~{this}"></div>
 
-    <!-- Book Detail Section -->
-    <section class="py-5">
+    <section class="py-5 bg-light">
         <div class="container">
             <div class="row">
-                <!-- Book Images -->
                 <div class="col-lg-5 mb-4">
-                    <div class="book-detail-image">
-                        <img th:src="@{'/images/book-' + ${book.id} + '.jpg'}"
-                            src="https://via.placeholder.com/400x600?text=Book+Cover"
-                            alt="Book Cover" class="img-fluid rounded shadow">
+                    <div id="bookCarousel" class="carousel slide border rounded shadow-sm" data-bs-ride="false">
+                        <div class="carousel-inner p-2">
+                            <div th:each="image, iterStat : ${book.images}" 
+                                 class="carousel-item" 
+                                 th:classappend="${iterStat.first} ? 'active'">
+                                <img th:src="${image.url}" class="d-block mx-auto" alt="Book Image">
+                            </div>
+                            
+                            <div th:if="${book.images == null or book.images.empty}" class="carousel-item active">
+                                <img th:src="@{/images/default-book.png}" class="d-block mx-auto" alt="Default Cover">
+                            </div>
+                        </div>
+
+                        <th:block th:if="${book.images != null and book.images.size() > 1}">
+                            <button class="carousel-control-prev" type="button" data-bs-target="#bookCarousel" data-bs-slide="prev">
+                                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">Previous</span>
+                            </button>
+                            <button class="carousel-control-next" type="button" data-bs-target="#bookCarousel" data-bs-slide="next">
+                                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">Next</span>
+                            </button>
+                        </th:block>
                     </div>
 
-                    <!-- Additional Images (if any) -->
-                    <div class="row mt-3" th:if="${book.images != null and !book.images.isEmpty()}">
-                        <div class="col-3" th:each="image : ${book.images}">
-                            <img th:src="@{'/images/' + ${image.imageUrl}}"
-                                src="https://via.placeholder.com/100x150?text=Image"
-                                alt="Book Image" class="img-fluid rounded cursor-pointer">
+                    <div class="row mt-3 g-2" th:if="${book.images != null and book.images.size() > 1}">
+                        <div class="col-3" th:each="image, iterStat : ${book.images}">
+                            <div class="thumb-container p-1 cursor-pointer" 
+                                 th:classappend="${iterStat.first} ? 'active-thumb'"
+                                 th:attr="onclick='goToSlide(' + ${iterStat.index} + ', this)'">
+                                <img th:src="${image.url}" class="img-fluid rounded" 
+                                     style="height: 70px; width: 100%; object-fit: cover;">
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Book Information -->
                 <div class="col-lg-7">
-                    <div class="book-info">
-                        <!-- Title -->
-                        <h1 class="h2 fw-bold mb-3" th:text="${book.title}">Tên sách</h1>
+                    <div class="ps-lg-4">
+                        <h1 class="fw-bold mb-3" th:text="${book.title}">Tên sách</h1>
 
-                        <!-- Author -->
-                        <p class="text-muted mb-2">
-                            <i class="fas fa-user"></i>
-                            <strong>Tác giả:</strong>
-                            <span th:text="${book.authorName}">Tên tác giả</span>
-                        </p>
-
-                        <!-- Category -->
-                        <p class="text-muted mb-2">
-                            <i class="fas fa-tag"></i>
-                            <strong>Danh mục:</strong>
-                            <span th:text="${book.categoryName}">Tên danh mục</span>
-                        </p>
-
-                        <!-- ISBN -->
-                        <p class="text-muted mb-3">
-                            <i class="fas fa-hashtag"></i>
-                            <strong>ISBN:</strong>
-                            <span th:text="${book.isbn}">ISBN số</span>
-                        </p>
-
-                        <!-- Price -->
-                        <div class="price-section mb-4">
-                            <h3 class="text-danger fw-bold mb-0" th:text="'₫' + ${#numbers.formatDecimal(book.price, 1, 'COMMA', 2, 'POINT')}">
-                                0,00 ₫
-                            </h3>
-                            <small class="text-muted">Giá đã bao gồm VAT</small>
+                        <div class="mb-3">
+                            <span class="text-muted"><i class="fas fa-user me-1"></i> Tác giả: </span>
+                            <span class="fw-bold" th:text="${book.authorName}">Tên tác giả</span>
+                            <span class="mx-2 text-muted">|</span>
+                            <span class="text-muted"><i class="fas fa-tag me-1"></i> Danh mục: </span>
+                            <span class="fw-bold" th:text="${book.categoryName}">Tên danh mục</span>
                         </div>
 
-                        <!-- Stock Status -->
-                        <div class="stock-status mb-4">
-                            <div th:if="${book.stock > 10}" class="alert alert-success">
-                                <i class="fas fa-check-circle"></i> Còn hàng (Số lượng: <span th:text="${book.stock}">0</span>)
+                        <div class="price-box p-3 bg-white rounded shadow-sm mb-4">
+                            <div class="text-danger h2 fw-bold mb-0" 
+                                 th:text="${#numbers.formatDecimal(book.price, 1, 'COMMA', 0, 'POINT')} + ' ₫'">
+                                0 ₫
                             </div>
-                            <div th:if="${book.stock > 0 and book.stock <= 10}" class="alert alert-warning">
-                                <i class="fas fa-exclamation-triangle"></i> Sắp hết hàng (Số lượng: <span th:text="${book.stock}">0</span>)
-                            </div>
-                            <div th:if="${book.stock == 0}" class="alert alert-danger">
-                                <i class="fas fa-times-circle"></i> Hết hàng
-                            </div>
+                            <small class="text-muted">ISBN: <span th:text="${book.isbn}"></span></small>
                         </div>
 
-                        <!-- Action Buttons -->
-                        <div class="action-buttons">
-                            <button class="btn btn-primary btn-lg w-100" th:disabled="${book.stock == 0}">
-                                <i class="fas fa-shopping-cart"></i> Thêm vào giỏ
+                        <div class="mb-4">
+                            <span th:if="${book.stock > 0}" class="badge bg-success p-2 px-3">
+                                <i class="fas fa-check me-1"></i> Còn hàng (<span th:text="${book.stock}"></span> cuốn)
+                            </span>
+                            <span th:unless="${book.stock > 0}" class="badge bg-danger p-2 px-3">
+                                <i class="fas fa-times me-1"></i> Hết hàng
+                            </span>
+                        </div>
+
+                        <div class="d-flex gap-3">
+                            <div class="input-group" style="width: 130px;">
+                                <button class="btn btn-outline-secondary" type="button">-</button>
+                                <input type="text" class="form-control text-center" value="1">
+                                <button class="btn btn-outline-secondary" type="button">+</button>
+                            </div>
+                            <button class="btn btn-primary btn-lg px-5 flex-grow-1" th:disabled="${book.stock == 0}">
+                                <i class="fas fa-shopping-cart me-2"></i> Thêm vào giỏ hàng
                             </button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Book Description -->
             <div class="row mt-5">
                 <div class="col-12">
-                    <div class="card">
-                        <div class="card-header">
-                            <h4 class="mb-0">Mô tả sách</h4>
-                        </div>
-                        <div class="card-body">
-                            <p th:text="${book.description}" class="mb-0">
-                                Mô tả chi tiết về cuốn sách sẽ được hiển thị ở đây. Đây là nơi để giới thiệu nội dung,
-                                chủ đề chính, và những điểm nổi bật của cuốn sách. Mô tả nên thu hút người đọc và
-                                cung cấp đủ thông tin để họ quyết định mua sách.
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body p-4">
+                            <h4 class="fw-bold border-bottom pb-3 mb-3">Mô tả sản phẩm</h4>
+                            <p th:text="${book.description}" class="text-secondary lh-lg" style="white-space: pre-line;">
+                                Nội dung...
                             </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Related Books -->
-            <div class="row mt-5">
-                <div class="col-12">
-                    <h4 class="mb-4">Sách liên quan</h4>
-                    <div class="row">
-                        <!-- Related book cards would go here -->
-                        <div class="col-md-3 mb-4" th:each="relatedBook : ${books}" th:if="${relatedBook.id != book.id}">
-                            <div class="card h-100 shadow-sm">
-                                <img th:src="@{'/images/book-' + ${relatedBook.id} + '.jpg'}"
-                                    src="https://via.placeholder.com/200x300?text=Book"
-                                    class="card-img-top" alt="Book Cover">
-                                <div class="card-body d-flex flex-column">
-                                    <h6 class="card-title" th:text="${relatedBook.title}">Tên sách</h6>
-                                    <p class="card-text text-muted small" th:text="${relatedBook.authorName}">Tác giả</p>
-                                    <p class="card-text fw-bold text-danger mt-auto" th:text="'₫' + ${#numbers.formatDecimal(relatedBook.price, 1, 'COMMA', 0, 'POINT')}">0 ₫</p>
-                                    <a th:href="@{'/books/' + ${relatedBook.id}}" class="btn btn-outline-primary btn-sm">Xem chi tiết</a>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -142,7 +143,45 @@
         </div>
     </section>
 
-    <!-- Footer -->
     <div th:replace="fragments/footer :: ~{this}"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function goToSlide(index, element) {
+            // 1. Tìm Carousel bằng ID
+            const myCarouselEl = document.getElementById('bookCarousel');
+            
+            // 2. Khởi tạo Instance của Bootstrap
+            const carousel = bootstrap.Carousel.getOrCreateInstance(myCarouselEl);
+            
+            // 3. Chuyển slide
+            carousel.to(index);
+            
+            // 4. Highlight thumbnail
+            updateThumbnailActive(index);
+        }
+
+        function updateThumbnailActive(index) {
+            const thumbnails = document.querySelectorAll('.thumb-container');
+            thumbnails.forEach((el, idx) => {
+                if(idx === index) {
+                    el.classList.add('active-thumb');
+                } else {
+                    el.classList.remove('active-thumb');
+                }
+            });
+        }
+
+        // Đồng bộ thumbnail khi người dùng bấm mũi tên của Carousel
+        document.addEventListener('DOMContentLoaded', function() {
+            const myCarousel = document.getElementById('bookCarousel');
+            if (myCarousel) {
+                myCarousel.addEventListener('slid.bs.carousel', function (event) {
+                    const activeIndex = event.to;
+                    updateThumbnailActive(activeIndex);
+                });
+            }
+        });
+    </script>
 </body>
 </html>

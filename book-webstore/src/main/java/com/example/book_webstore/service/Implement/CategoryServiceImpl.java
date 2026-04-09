@@ -4,6 +4,7 @@ import com.example.book_webstore.model.Category;
 import com.example.book_webstore.dto.CategoryDTO;
 import com.example.book_webstore.repository.CategoryRepository;
 import com.example.book_webstore.service.CategoryService;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -79,12 +80,68 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     public void deleteCategory(Long id) {
-        Category category = categoryRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Category not found with id: " + id));
-        if (!categoryRepository.existsByParentId(id)) {
+        // 1. Kiểm tra xem danh mục có tồn tại không
+        if (!categoryRepository.existsById(id)) {
+            throw new RuntimeException("Category not found with id: " + id);
+        }
+
+        // 2. CHUẨN: Nếu TÌM THẤY (không có dấu !) danh mục con thì mới báo lỗi
+        if (categoryRepository.existsByParentId(id)) {
             throw new RuntimeException("Cannot delete category with existing subcategories");
         }
-        categoryRepository.delete(category);
 
+        // 3. Nếu không vướng gì thì xóa
+        categoryRepository.deleteById(id);
+    }
+
+    @Override
+    @Transactional
+    public void saveCategory(CategoryDTO dto) {
+        Category category;
+
+        // 1. Kiểm tra là thêm mới hay cập nhật
+        if (dto.getId() != null) {
+            category = categoryRepository.findById(dto.getId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục"));
+        } else {
+            category = new Category();
+        }
+
+        // 2. Gán các trường cơ bản
+        category.setName(dto.getName());
+
+        // Tự sinh slug nếu người dùng không nhập (Ví dụ: "Sách Kinh Tế" ->
+        // "sach-kinh-te")
+        if (dto.getSlug() == null || dto.getSlug().isBlank()) {
+            category.setSlug(generateSlug(dto.getName()));
+        } else {
+            category.setSlug(dto.getSlug());
+        }
+
+        // 3. Xử lý danh mục cha (Parent Category)
+        if (dto.getParentId() != null) {
+            Category parent = categoryRepository.findById(dto.getParentId())
+                    .orElseThrow(() -> new RuntimeException("Danh mục cha không tồn tại"));
+            category.setParent(parent);
+        } else {
+            category.setParent(null);
+        }
+
+        categoryRepository.save(category);
+    }
+
+    // Hàm bổ trợ tạo Slug đơn giản
+    private String generateSlug(String input) {
+        return input.toLowerCase()
+                .replaceAll("[áàảãạăắằẳẵặâấầẩẫậ]", "a")
+                .replaceAll("[éèẻẽẹêếềểễệ]", "e")
+                .replaceAll("[íìỉĩị]", "i")
+                .replaceAll("[óòỏõọôốồổỗộơớờởỡợ]", "o")
+                .replaceAll("[úùủũụưứừửữự]", "u")
+                .replaceAll("[ýỳỷỹỵ]", "y")
+                .replaceAll("đ", "d")
+                .replaceAll("[^a-z0-9\\s]", "")
+                .replaceAll("\\s+", "-")
+                .replaceAll("^-+|-+$", "");
     }
 }

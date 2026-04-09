@@ -128,15 +128,17 @@
                         <div class="col-md-6 col-lg-4" th:each="book : ${books}">
                             <div class="card book-card h-100 shadow-sm hover-shadow">
                                 <!-- Book Image -->
-                                <div class="book-image-wrapper position-relative overflow-hidden">
-                                    <img th:src="@{'/images/book-' + ${book.id} + '.jpg'}" 
-                                        src="https://via.placeholder.com/250x350?text=Book+Cover" 
-                                        class="card-img-top" alt="Book Cover" loading="lazy">
+                                <div class="book-image-wrapper position-relative overflow-hidden" style="height: 320px;">
+                                    <img th:src="${book.images != null and !book.images.empty ? book.images[0].url : '/images/default-book.png'}" 
+                                        class="card-img-top w-100 h-100" 
+                                        style="object-fit: cover;" 
+                                        alt="Book Cover" loading="lazy">
+                                    
                                     <div class="book-overlay">
-                                        <a th:href="@{'/books/' + ${book.id}}" class="btn btn-primary btn-sm me-2" title="Xem chi tiết">
+                                        <a th:href="@{'/books/' + ${book.id}}" class="btn btn-primary btn-sm me-2">
                                             <i class="fas fa-eye"></i> Xem
                                         </a>
-                                        <button class="btn btn-success btn-sm" title="Thêm vào giỏ">
+                                        <button class="btn btn-success btn-sm" th:disabled="${book.stock == 0}">
                                             <i class="fas fa-shopping-cart"></i>
                                         </button>
                                     </div>

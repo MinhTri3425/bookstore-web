@@ -86,10 +86,11 @@ public class BookQueryFacadeImpl implements BookQueryFacade {
 
     private List<BookDTO> populateBooksWithDetails(List<BookDTO> books) {
         return books.stream().map(book -> {
-
             String authorName = "Unknown";
             String categoryName = "Unknown";
+            List<BookImageDTO> images = List.of(); // Mặc định là list rỗng
 
+            // 1. Lấy tên tác giả
             try {
                 AuthorDTO author = authorService.getAuthorById(book.getAuthorId());
                 if (author != null)
@@ -97,10 +98,17 @@ public class BookQueryFacadeImpl implements BookQueryFacade {
             } catch (Exception ignored) {
             }
 
+            // 2. Lấy tên danh mục
             try {
                 CategoryDTO category = categoryService.getCategoryById(book.getCategoryId());
                 if (category != null)
                     categoryName = category.getName();
+            } catch (Exception ignored) {
+            }
+
+            // 3. QUAN TRỌNG: Phải lấy danh sách ảnh từ bookImageService
+            try {
+                images = bookImageService.getBookImagesByBookId(book.getId());
             } catch (Exception ignored) {
             }
 
@@ -115,7 +123,7 @@ public class BookQueryFacadeImpl implements BookQueryFacade {
                     .authorName(authorName)
                     .categoryId(book.getCategoryId())
                     .categoryName(categoryName)
-                    .images(book.getImages())
+                    .images(images) // Gán list ảnh vừa lấy được vào đây
                     .build();
         }).toList();
     }

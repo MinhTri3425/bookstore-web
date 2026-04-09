@@ -65,8 +65,11 @@ public class AdminAuthorController {
         try {
             authorService.deleteAuthor(id);
             ra.addFlashAttribute("successMessage", "Đã xóa tác giả thành công!");
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            // Lỗi này xảy ra khi tác giả vẫn còn sách liên kết
+            ra.addFlashAttribute("errorMessage", "Không thể xóa: Tác giả này đang có sách trong hệ thống!");
         } catch (Exception e) {
-            ra.addFlashAttribute("errorMessage", "Không thể xóa tác giả này (có thể do đang có sách liên kết)!");
+            ra.addFlashAttribute("errorMessage", "Lỗi hệ thống: " + e.getMessage());
         }
         return "redirect:/admin/authors";
     }
