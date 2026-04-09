@@ -22,9 +22,11 @@ public class BookDTO {
     private BigDecimal price;
 
     private Long authorId;
+    private String authorName; // Thêm tên tác giả
     private Long categoryId;
+    private String categoryName; // Thêm tên danh mục
     private List<BookImageDTO> images;
 
     // Dùng cho request, không cần thiết khi trả về client
-    private int stock;
+    private Integer stock;
 }

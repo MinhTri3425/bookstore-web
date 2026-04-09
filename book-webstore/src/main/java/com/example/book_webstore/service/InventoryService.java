@@ -6,4 +6,6 @@ public interface InventoryService {
     void increaseStock(Long bookId, int quantity);
 
     int getStockLevel(Long bookId);
+
+    void setStockLevel(Long bookId, int quantity);
 }

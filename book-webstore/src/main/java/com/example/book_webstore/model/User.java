@@ -35,7 +35,7 @@ public class User {
     private String phoneNumber;
 
     public static enum Role {
-        ADMIN, STAFF, CUSTOMER
+        ADMIN, USER
     }
 
     @Enumerated(EnumType.STRING)

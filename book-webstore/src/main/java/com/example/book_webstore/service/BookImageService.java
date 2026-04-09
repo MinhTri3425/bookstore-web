@@ -12,4 +12,6 @@ public interface BookImageService {
     void deleteBookImage(Long id);
 
     List<BookImageDTO> getBookImagesByBookId(Long bookId);
+
+    void deleteImagesByBookId(Long bookId);
 }

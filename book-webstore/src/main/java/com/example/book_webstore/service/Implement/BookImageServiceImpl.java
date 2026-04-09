@@ -3,6 +3,7 @@ package com.example.book_webstore.service.Implement;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.example.book_webstore.dto.BookImageDTO;
 import com.example.book_webstore.model.BookImage;
@@ -13,8 +14,8 @@ import com.example.book_webstore.service.BookImageService;
 
 @Service
 public class BookImageServiceImpl implements BookImageService {
-    private BookImageRepository bookImageRepository;
-    private BookRepository bookRepository;
+    private final BookImageRepository bookImageRepository;
+    private final BookRepository bookRepository;
 
     public BookImageServiceImpl(BookImageRepository bookImageRepository, BookRepository bookRepository) {
         this.bookImageRepository = bookImageRepository;
@@ -80,5 +81,12 @@ public class BookImageServiceImpl implements BookImageService {
                 .sortOrder(img.getSortOrder())
                 .bookId(img.getBook().getId())
                 .build()).toList();
+    }
+
+    @Override
+    @Transactional
+    public void deleteImagesByBookId(Long bookId) {
+        List<BookImage> images = bookImageRepository.findByBookId(bookId);
+        bookImageRepository.deleteAll(images);
     }
 }
