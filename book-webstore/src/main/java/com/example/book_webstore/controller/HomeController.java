@@ -9,14 +9,14 @@ public class HomeController {
     // 1. Trang chủ chính thức
     @GetMapping("/")
     public String home() {
-        // Trỏ đến /WEB-INF/views/home.jsp
-        return "home";
+        // Trỏ đến /WEB-INF/views/index.jsp
+        return "index";
     }
 
     // 2. Dự phòng nếu người dùng gõ /home
     @GetMapping("/home")
     public String homePage() {
-        return "home";
+        return "index";
     }
 
     // 3. Điều hướng nhanh vào khu vực Admin

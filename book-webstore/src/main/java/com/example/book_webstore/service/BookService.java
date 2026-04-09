@@ -18,4 +18,5 @@ public interface BookService {
 
         List<BookDTO> filterBooks(String keyword, Long categoryId, Long authorId, Double minPrice, Double maxPrice);
 
+        List<BookDTO> getAllBooksCart();
 }

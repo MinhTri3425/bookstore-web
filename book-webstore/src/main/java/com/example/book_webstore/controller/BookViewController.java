@@ -56,7 +56,7 @@ public class BookViewController {
 
         // LƯU Ý: Đổi từ "books/index" sang "books/list" nếu ông đặt tên file là
         // list.jsp
-        return "books/list";
+        return "books/index";
     }
 
     // 2. Hiển thị chi tiết một cuốn sách

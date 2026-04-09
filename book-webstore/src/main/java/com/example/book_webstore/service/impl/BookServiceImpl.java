@@ -12,6 +12,7 @@ import com.example.book_webstore.service.BookService;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -170,5 +171,11 @@ public class BookServiceImpl implements BookService {
                                 .authorId(book.getAuthor().getId())
                                 .categoryId(book.getCategory().getId())
                                 .build();
+        }
+
+        @Override
+        @Transactional(readOnly = true)
+        public List<BookDTO> getAllBooksCart() {
+                return bookRepository.findAllWithImages().stream().map(this::mapToDTO).collect(Collectors.toList());
         }
 }
