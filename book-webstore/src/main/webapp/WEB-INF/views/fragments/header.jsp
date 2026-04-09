@@ -21,7 +21,9 @@
                 <li class="nav-item">
                     <a class="nav-link px-3 position-relative" href="${pageContext.request.contextPath}/cart">
                         <i class="fas fa-shopping-cart"></i>
-                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">0</span>
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                            ${globalCartCount != null ? globalCartCount : 0}
+                        </span>
                     </a>
                 </li>
 

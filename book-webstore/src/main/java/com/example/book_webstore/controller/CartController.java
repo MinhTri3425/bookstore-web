@@ -16,17 +16,18 @@ import java.math.BigDecimal;
 @Controller
 public class CartController {
     private static final String CART_SESSION_KEY = "CART_ID";
-
     private final CartService cartService;
 
     public CartController(CartService cartService) {
         this.cartService = cartService;
     }
 
-    @GetMapping({"/Cart", "/Cart/", "/shop/cart"})
+    // Chỉ giữ một Mapping duy nhất cho trang giỏ hàng
+    @GetMapping("/cart")
     public String cartPage(Model model,
-                           HttpSession session,
-                           @RequestParam(value = "message", required = false) String message) {
+            HttpSession session,
+            @RequestParam(value = "message", required = false) String message) {
+
         Long cartId = (Long) session.getAttribute(CART_SESSION_KEY);
         CartDTO cart = cartService.getOrCreateCart(cartId);
         session.setAttribute(CART_SESSION_KEY, cart.getId());
@@ -35,39 +36,44 @@ public class CartController {
         model.addAttribute("cartItemCount", cartService.getItemCount(cart.getId()));
         model.addAttribute("cartTotal", calculateCartTotal(cart));
         model.addAttribute("message", message);
-        return "Cart";
+
+        // Theo ảnh: thư mục là 'cart', file là 'cart.jsp' (viết thường toàn bộ)
+        return "cart/cart";
     }
 
-    @GetMapping("/shop/books/cart")
+    // Nếu muốn hỗ trợ các link cũ, hãy đổi đường dẫn khác, KHÔNG trùng với /cart ở
+    // trên
+    @GetMapping("/shop/cart")
     public String cartPageAlias() {
-        return "redirect:/Cart/";
+        return "redirect:/cart";
     }
 
-    @PostMapping({"/Cart/add", "/shop/cart/add"})
+    @PostMapping("/cart/add")
     public String addToCart(@RequestParam("bookId") Long bookId,
-                            @RequestParam(value = "quantity", defaultValue = "1") int quantity,
-                            HttpSession session,
-                            RedirectAttributes redirectAttributes) {
+            @RequestParam(value = "quantity", defaultValue = "1") int quantity,
+            HttpSession session,
+            RedirectAttributes redirectAttributes) {
+
         Long cartId = (Long) session.getAttribute(CART_SESSION_KEY);
         CartDTO cart = cartService.addToCart(cartId, bookId, quantity);
         session.setAttribute(CART_SESSION_KEY, cart.getId());
-        redirectAttributes.addAttribute("message", "Da them sach vao gio hang");
-        return "redirect:/BookTest/";
+
+        redirectAttributes.addFlashAttribute("message", "Đã thêm sách vào giỏ hàng!");
+        return "redirect:/cart"; // Thêm xong thì chuyển hướng thẳng về giỏ hàng để xem
     }
 
-    @PostMapping({"/Cart/remove", "/shop/cart/remove"})
+    @PostMapping("/cart/remove")
     public String removeFromCart(@RequestParam("bookId") Long bookId,
-                                 @RequestParam(value = "redirectTo", defaultValue = "books") String redirectTo,
-                                 HttpSession session,
-                                 RedirectAttributes redirectAttributes) {
+            @RequestParam(value = "redirectTo", defaultValue = "cart") String redirectTo,
+            HttpSession session,
+            RedirectAttributes redirectAttributes) {
+
         Long cartId = (Long) session.getAttribute(CART_SESSION_KEY);
-        CartDTO cart = cartService.removeFromCart(cartId, bookId);
-        session.setAttribute(CART_SESSION_KEY, cart.getId());
-        redirectAttributes.addAttribute("message", "Da xoa sach khoi gio hang");
-        if ("cart".equalsIgnoreCase(redirectTo)) {
-            return "redirect:/Cart/";
-        }
-        return "redirect:/BookTest/";
+        cartService.removeFromCart(cartId, bookId);
+
+        redirectAttributes.addFlashAttribute("message", "Đã xóa sách khỏi giỏ hàng");
+
+        return "redirect:/cart";
     }
 
     private BigDecimal calculateCartTotal(CartDTO cart) {

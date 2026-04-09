@@ -39,9 +39,7 @@
     </style>
 </head>
 <body>
-    <%-- Thay thế fragments bằng jsp:include --%>
     <%@ include file="/WEB-INF/views/fragments/header.jsp" %>
-    <%@ include file="/WEB-INF/views/fragments/footer.jsp" %>
 
     <section class="py-5 bg-light">
         <div class="container">
@@ -57,7 +55,7 @@
                             
                             <c:if test="${empty book.images}">
                                 <div class="carousel-item active">
-                                    <img src="${pageContext.request.contextPath}/images/default-book.png}" class="d-block mx-auto" alt="Default Cover">
+                                    <img src="${pageContext.request.contextPath}/images/default-book.png" class="d-block mx-auto" alt="Default Cover">
                                 </div>
                             </c:if>
                         </div>
@@ -74,7 +72,7 @@
                         </c:if>
                     </div>
 
-                    <div class="row mt-3 g-2" title="Album ảnh">
+                    <div class="row mt-3 g-2">
                         <c:forEach var="image" items="${book.images}" varStatus="iterStat">
                             <div class="col-3">
                                 <div class="thumb-container p-1 cursor-pointer ${iterStat.first ? 'active-thumb' : ''}" 
@@ -121,17 +119,32 @@
                             </c:choose>
                         </div>
 
-                        <div class="d-flex gap-3">
-                            <div class="input-group" style="width: 130px;">
-                                <button class="btn btn-outline-secondary" type="button" onclick="this.parentNode.querySelector('input').stepDown()">-</button>
-                                <input type="number" class="form-control text-center" value="1" min="1" max="${book.stock}">
-                                <button class="btn btn-outline-secondary" type="button" onclick="this.parentNode.querySelector('input').stepUp()">+</button>
+                        <form action="${pageContext.request.contextPath}/cart/add" method="post">
+                            <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
+                            
+                            <input type="hidden" name="bookId" value="${book.id}">
+
+                            <div class="d-flex gap-3">
+                                <div class="input-group" style="width: 130px;">
+                                    <button class="btn btn-outline-secondary" type="button" 
+                                            onclick="var input = this.parentNode.querySelector('input'); if(input.value > 1) input.stepDown();">-</button>
+                                    
+                                    <input type="number" name="quantity" class="form-control text-center" 
+                                           value="1" min="1" max="${book.stock}">
+                                    
+                                    <button class="btn btn-outline-secondary" type="button" 
+                                        onclick="var input = this.parentNode.querySelector('input'); 
+                                                var stock = parseInt('${book.stock}' || '0'); 
+                                                if(parseInt(input.value) < stock) input.stepUp();"> + </button>
+                                </div>
+                                
+                                <button type="submit" class="btn btn-primary btn-lg px-5 flex-grow-1" 
+                                        ${book.stock == 0 ? 'disabled' : ''}>
+                                    <i class="fas fa-shopping-cart me-2"></i> Thêm vào giỏ hàng
+                                </button>
                             </div>
-                            <button class="btn btn-primary btn-lg px-5 flex-grow-1" ${book.stock == 0 ? 'disabled' : ''}>
-                                <i class="fas fa-shopping-cart me-2"></i> Thêm vào giỏ hàng
-                            </button>
+                        </form>
                         </div>
-                    </div>
                 </div>
             </div>
 
@@ -148,7 +161,7 @@
         </div>
     </section>
 
-    <jsp:include page="../fragments/footer.jsp" />
+    <%@ include file="/WEB-INF/views/fragments/footer.jsp" %>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
@@ -156,13 +169,12 @@
             const myCarouselEl = document.getElementById('bookCarousel');
             const carousel = bootstrap.Carousel.getOrCreateInstance(myCarouselEl);
             carousel.to(index);
-            updateThumbnailActive(index);
         }
 
         function updateThumbnailActive(index) {
             const thumbnails = document.querySelectorAll('.thumb-container');
             thumbnails.forEach((el, idx) => {
-                if(idx === index) {
+                if(idx == index) {
                     el.classList.add('active-thumb');
                 } else {
                     el.classList.remove('active-thumb');
@@ -174,8 +186,7 @@
             const myCarousel = document.getElementById('bookCarousel');
             if (myCarousel) {
                 myCarousel.addEventListener('slid.bs.carousel', function (event) {
-                    const activeIndex = event.to;
-                    updateThumbnailActive(activeIndex);
+                    updateThumbnailActive(event.to);
                 });
             }
         });
