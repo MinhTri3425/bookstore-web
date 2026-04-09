@@ -11,6 +11,6 @@ import lombok.Setter;
 @NoArgsConstructor
 public class InventoryDTO {
     private Long id;
-    private String bookId;
+    private Long bookId;
     private int quantity;
 }

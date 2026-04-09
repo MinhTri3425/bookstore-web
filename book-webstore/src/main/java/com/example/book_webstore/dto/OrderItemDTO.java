@@ -13,5 +13,6 @@ public class OrderItemDTO {
     private Long id;
     private BookDTO book;
     private int quantity;
+    private String bookTitle;
 
 }

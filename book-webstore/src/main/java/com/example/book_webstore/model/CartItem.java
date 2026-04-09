@@ -27,4 +27,9 @@ public class CartItem {
     @JoinColumn(name = "book_id")
     @ToString.Exclude
     private Book book;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cart_id")
+    @ToString.Exclude
+    private Cart cart;
 }
