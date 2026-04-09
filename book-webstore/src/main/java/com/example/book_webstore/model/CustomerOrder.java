@@ -31,4 +31,9 @@ public class CustomerOrder {
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
+     @OneToOne(mappedBy = "order", fetch = FetchType.LAZY)
+    private Payment payment;
+
+    @OneToOne(mappedBy = "order", fetch = FetchType.LAZY)
+    private Shipping shipping;
 }

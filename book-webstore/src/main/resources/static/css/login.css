@@ -1,0 +1,53 @@
+/* login.css */
+body {
+    background-color: #f8f9fa;
+    font-family: 'Mulish', sans-serif;
+}
+
+.brand-text, .fw-bold {
+    font-family: 'Lora', serif;
+    font-weight: 600;
+    color: #e67e22 !important; /* Màu cam đất sáng */
+}
+
+.login-card {
+    border: none;
+    border-radius: 1rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+}
+
+.bg-image {
+    /* Trỏ tới ảnh trong thư mục static/images của bạn */
+    background-image: url('../images/bg-login.jpg'); /* Lưu ý: dùng ../ để lùi lại 1 thư mục rồi vào images */
+    background-size: cover;
+    background-position: center;
+    min-height: 100%;
+}
+
+.btn-primary-custom {
+    background-color: #e67e22;
+    border-color: #e67e22;
+    color: #ffffff;
+    padding: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    transition: all 0.3s;
+}
+
+.btn-primary-custom:hover {
+    background-color: #d35400;
+    border-color: #d35400;
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(230, 126, 34, 0.3);
+}
+
+.form-floating > label {
+    color: #6c757d;
+}
+
+.form-control:focus {
+    border-color: #e67e22;
+    box-shadow: 0 0 0 0.25rem rgba(230, 126, 34, 0.25);
+}

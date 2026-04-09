@@ -20,6 +20,6 @@ public class BookImage {
     private String altText;
     private int sortOrder;
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "book_id")
+    @JoinColumn(name = "book_id", nullable = false)
     private Book book;
 }
