@@ -55,3 +55,10 @@ INSERT INTO book_images (book_id, url, alt_text, sort_order) VALUES
 (6, '/images/books/sapiens.jpg', N'Sapiens: Lược Sử Loài Người - Bìa sách', 1),
 (7, '/images/books/atomic-habits.jpg', N'Atomic Habits - Bìa sách', 1),
 (8, '/images/books/nghi-giau-lam-giau.jpg', N'Nghĩ Giàu & Làm Giàu - Bìa sách', 1);
+
+INSERT INTO users (email, password, name, phone_number, role) 
+VALUES ('admin@gmail.com', '$2a$10$WEc2pPmjsqfugfUbl3OVX.FmS2dr.fvsrGUNs6qUY6uTn9hUG.VAu', 'Quản trị viên', '0123456789', 'ADMIN');
+
+-- Tạo tài khoản Khách hàng (USER)
+INSERT INTO users (email, password, name, phone_number, role) 
+VALUES ('user@gmail.com', '$2a$10$WEc2pPmjsqfugfUbl3OVX.FmS2dr.fvsrGUNs6qUY6uTn9hUG.VAu', 'Khách hàng', '0987654321', 'USER');

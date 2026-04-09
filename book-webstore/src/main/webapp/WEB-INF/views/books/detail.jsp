@@ -40,8 +40,8 @@
 </head>
 <body>
     <%-- Thay thế fragments bằng jsp:include --%>
-    <jsp:include page="../fragments/header.jsp" />
-    <jsp:include page="../fragments/breadcrumb.jsp" />
+    <%@ include file="/WEB-INF/views/fragments/header.jsp" %>
+    <%@ include file="/WEB-INF/views/fragments/footer.jsp" %>
 
     <section class="py-5 bg-light">
         <div class="container">

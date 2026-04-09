@@ -31,7 +31,7 @@
     </style>
 </head>
 <body>
-    <jsp:include page="/WEB-INF/views/fragments/header.jsp" />
+    <%@ include file="/WEB-INF/views/fragments/header.jsp" %>
 
     <section class="hero-section text-white py-5 bg-dark">
         <div class="container">
@@ -176,7 +176,7 @@
         </div>
     </div>
 
-    <jsp:include page="/WEB-INF/views/fragments/footer.jsp" />
+    <%@ include file="/WEB-INF/views/fragments/footer.jsp" %>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
