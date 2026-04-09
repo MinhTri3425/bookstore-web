@@ -9,4 +9,5 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     List<User> findByRoleOrderByNameAsc(User.Role role);
 
+    User findByEmail(String email);
 }
