@@ -19,7 +19,10 @@ public class OrderItem {
     private Long id;
 
     private int quantity;
-
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id")
+    @ToString.Exclude
+    private CustomerOrder order;
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "book_id")
     @ToString.Exclude
