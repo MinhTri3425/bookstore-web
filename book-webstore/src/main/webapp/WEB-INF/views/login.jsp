@@ -41,7 +41,12 @@
                                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                                     </div>
                                 </c:if>
-
+                                <c:if test="${param.registerSuccess == 'true'}">
+                                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                        <small>Đăng ký thành công! Vui lòng đăng nhập.</small>
+                                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                    </div>
+                                </c:if>
                                 <form action="${pageContext.request.contextPath}/login" method="post">
                                     <div class="form-floating mb-3">
                                         <input type="text" class="form-control" id="username" name="username" placeholder="Tên đăng nhập" required autofocus>
@@ -62,7 +67,7 @@
                                     </div>
                                     <div class="text-center mt-2">
                                         <span class="text-muted"><small>Chưa có tài khoản?</small></span> 
-                                        <a href="#" class="text-decoration-none fw-bold" style="color: #2c3e50;"><small>Đăng ký ngay</small></a>
+                                        <a href="${pageContext.request.contextPath}/register" class="text-decoration-none fw-bold" style="color: #2c3e50;"><small>Đăng ký ngay</small></a>
                                     </div>
                                 </form>
                             </div>

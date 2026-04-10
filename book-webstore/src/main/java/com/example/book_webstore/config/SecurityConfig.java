@@ -34,6 +34,7 @@ public class SecurityConfig {
                         // QUAN TRỌNG: Cho phép truy cập tài nguyên tĩnh và THƯ MỤC UPLOADS (ảnh sách)
                         .requestMatchers(
                                 "/",
+                                "/register",
                                 "/login",
                                 "/error",
                                 "/css/**",
