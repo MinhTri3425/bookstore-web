@@ -9,6 +9,8 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Mulish:wght@300;400;600&display=swap" rel="stylesheet">
     
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/login.css">
 </head>
 <body>
@@ -69,7 +71,20 @@
                                         <span class="text-muted"><small>Chưa có tài khoản?</small></span> 
                                         <a href="${pageContext.request.contextPath}/register" class="text-decoration-none fw-bold" style="color: #2c3e50;"><small>Đăng ký ngay</small></a>
                                     </div>
-                                </form>
+
+                                    <hr class="my-4">
+                                    <div class="text-center mt-3">
+                                        <p class="text-muted"><small>Hoặc đăng nhập bằng:</small></p>
+                                        <div class="d-grid gap-2">
+                                            <a href="/mock-login?provider=google" class="btn btn-outline-danger shadow-sm">
+                                                <i class="fab fa-google me-2"></i> Đăng nhập với Google
+                                            </a>
+                                            <a href="/mock-login?provider=facebook" class="btn btn-outline-primary shadow-sm">
+                                                <i class="fab fa-facebook-f me-2"></i> Đăng nhập với Facebook
+                                            </a>
+                                        </div>
+                                    </div>
+                                    </form>
                             </div>
                         </div>
                     </div>
