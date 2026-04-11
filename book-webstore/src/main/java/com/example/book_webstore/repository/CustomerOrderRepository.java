@@ -13,21 +13,21 @@ import com.example.book_webstore.model.CustomerOrder;
 
 public interface CustomerOrderRepository extends JpaRepository<CustomerOrder, Long> {
 
-    @EntityGraph(attributePaths = {"items", "customer", "payment", "shipping"})
+    @EntityGraph(attributePaths = {"items", "customer", "coupon", "payment", "shipping"})
     Page<CustomerOrder> findAllBy(Pageable pageable);
 
-    @EntityGraph(attributePaths = {"items", "customer", "payment", "shipping"})
+    @EntityGraph(attributePaths = {"items", "customer", "coupon", "payment", "shipping"})
     Page<CustomerOrder> findByStatus(CustomerOrder.OrderStatus status, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"items", "customer", "payment", "shipping"})
+    @EntityGraph(attributePaths = {"items", "customer", "coupon", "payment", "shipping"})
     @Query("select o from CustomerOrder o where o.id = :id")
     Optional<CustomerOrder> findListItemById(Long id);
 
-    @EntityGraph(attributePaths = {"items", "items.book", "customer", "payment", "shipping", "shipping.shipper"})
+    @EntityGraph(attributePaths = {"items", "items.book", "customer", "coupon", "payment", "shipping", "shipping.shipper"})
     @Query("select o from CustomerOrder o where o.id = :id")
     Optional<CustomerOrder> findDetailById(Long id);
 
-    @EntityGraph(attributePaths = {"items", "customer", "payment", "shipping"})
+    @EntityGraph(attributePaths = {"items", "customer", "coupon", "payment", "shipping"})
     @Query("""
             select distinct o
             from CustomerOrder o
@@ -42,7 +42,7 @@ public interface CustomerOrderRepository extends JpaRepository<CustomerOrder, Lo
             @Param("status") CustomerOrder.OrderStatus status,
             Pageable pageable);
 
-    @EntityGraph(attributePaths = {"items", "customer", "payment", "shipping"})
+    @EntityGraph(attributePaths = {"items", "customer", "coupon", "payment", "shipping"})
     @Query("""
             select o
             from CustomerOrder o
@@ -54,7 +54,7 @@ public interface CustomerOrderRepository extends JpaRepository<CustomerOrder, Lo
             """)
     Optional<CustomerOrder> findCustomerListItemById(@Param("customerId") Long customerId, @Param("id") Long id);
 
-    @EntityGraph(attributePaths = {"items", "items.book", "customer", "payment", "shipping", "shipping.shipper"})
+    @EntityGraph(attributePaths = {"items", "items.book", "customer", "coupon", "payment", "shipping", "shipping.shipper"})
     @Query("""
             select o
             from CustomerOrder o

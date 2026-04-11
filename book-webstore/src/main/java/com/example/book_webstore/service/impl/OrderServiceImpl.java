@@ -258,7 +258,12 @@ public class OrderServiceImpl implements OrderService {
         dto.setStatusCssClass(toStatusCssClass(order.getStatus()));
         dto.setCreatedAtDisplay(formatDateTime(order.getCreatedAt()));
         dto.setItemCount(order.getItems().stream().mapToInt(OrderItem::getQuantity).sum());
+        BigDecimal subtotal = resolveSubtotal(order);
+        BigDecimal discountAmount = order.getDiscountAmount() == null ? BigDecimal.ZERO : order.getDiscountAmount();
         dto.setTotalAmountDisplay(formatAmount(resolveAmount(order, payment)));
+        dto.setSubtotalAmountDisplay(formatAmount(subtotal));
+        dto.setDiscountAmountDisplay(formatAmount(discountAmount));
+        dto.setCouponCode(order.getCoupon() != null ? order.getCoupon().getCode() : NOT_AVAILABLE);
         dto.setCustomerName(customer != null && customer.getName() != null ? customer.getName() : NOT_AVAILABLE);
         dto.setShippingMethod(
                 shipping != null && shipping.getMethod() != null ? shipping.getMethod().name() : NOT_AVAILABLE);
@@ -282,6 +287,10 @@ public class OrderServiceImpl implements OrderService {
         if (payment != null && payment.getAmount() != null) {
             return payment.getAmount();
         }
+        return resolveSubtotal(order).subtract(order.getDiscountAmount() == null ? BigDecimal.ZERO : order.getDiscountAmount());
+    }
+
+    private BigDecimal resolveSubtotal(CustomerOrder order) {
         return order.getItems().stream()
                 .filter(item -> item.getBook() != null && item.getBook().getPrice() != null)
                 .map(item -> item.getBook().getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))

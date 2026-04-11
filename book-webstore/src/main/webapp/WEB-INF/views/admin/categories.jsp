@@ -36,11 +36,17 @@
                         <a href="${pageContext.request.contextPath}/admin/books/add" class="list-group-item list-group-item-action border-0 px-4 py-3">
                             <i class="fas fa-plus me-2"></i> Thêm sách mới
                         </a>
+                        <a href="${pageContext.request.contextPath}/admin/orders" class="list-group-item list-group-item-action border-0 px-4 py-3">
+                            <i class="fas fa-receipt me-2"></i> Đơn hàng
+                        </a>
                         <a href="${pageContext.request.contextPath}/admin/authors" class="list-group-item list-group-item-action border-0 px-4 py-3">
                             <i class="fas fa-user me-2"></i> Tác giả
                         </a>
                         <a href="${pageContext.request.contextPath}/admin/categories" class="list-group-item list-group-item-action border-0 px-4 py-3 active">
                             <i class="fas fa-tags me-2"></i> Danh mục
+                        </a>
+                        <a href="${pageContext.request.contextPath}/admin/coupons" class="list-group-item list-group-item-action border-0 px-4 py-3">
+                            <i class="fas fa-ticket-alt me-2"></i> Coupon
                         </a>
                     </div>
                 </div>

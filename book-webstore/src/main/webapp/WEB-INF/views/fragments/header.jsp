@@ -39,7 +39,12 @@
                                 <li><a class="dropdown-item text-danger fw-bold" href="${pageContext.request.contextPath}/admin/dashboard">Quản trị</a></li>
                                 <li><hr class="dropdown-divider"></li>
                             </sec:authorize>
-                            <li><a class="dropdown-item" href="${pageContext.request.contextPath}/order/history">Đơn hàng</a></li>
+                            <sec:authorize access="hasRole('ADMIN')">
+                                <li><a class="dropdown-item" href="${pageContext.request.contextPath}/admin/orders">Đơn hàng</a></li>
+                            </sec:authorize>
+                            <sec:authorize access="!hasRole('ADMIN')">
+                                <li><a class="dropdown-item" href="${pageContext.request.contextPath}/my-orders">Đơn hàng</a></li>
+                            </sec:authorize>
                             <li>
                                 <form action="${pageContext.request.contextPath}/logout" method="post" class="m-0">
                                     <button type="submit" class="dropdown-item">Đăng xuất</button>
