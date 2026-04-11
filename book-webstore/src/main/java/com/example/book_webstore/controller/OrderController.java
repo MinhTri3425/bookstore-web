@@ -69,8 +69,12 @@ public class OrderController {
             @PathVariable Long id,
             @RequestParam CustomerOrder.OrderStatus status,
             RedirectAttributes redirectAttributes) {
-        orderService.updateOrderStatus(id, status);
-        redirectAttributes.addFlashAttribute("successMessage", "Order status updated.");
+        try {
+            orderService.updateOrderStatus(id, status);
+            redirectAttributes.addFlashAttribute("successMessage", "Đã cập nhật trạng thái đơn hàng.");
+        } catch (org.springframework.web.server.ResponseStatusException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", e.getReason());
+        }
         return "redirect:/admin/orders/" + id;
     }
 
@@ -79,8 +83,12 @@ public class OrderController {
             @PathVariable Long id,
             @RequestParam Payment.PaymentStatus status,
             RedirectAttributes redirectAttributes) {
-        orderService.updatePayment(id, status);
-        redirectAttributes.addFlashAttribute("successMessage", "Payment status updated.");
+        try {
+            orderService.updatePayment(id, status);
+            redirectAttributes.addFlashAttribute("successMessage", "Đã cập nhật thanh toán.");
+        } catch (org.springframework.web.server.ResponseStatusException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", e.getReason());
+        }
         return "redirect:/admin/orders/" + id;
     }
 
@@ -90,8 +98,12 @@ public class OrderController {
             @RequestParam Shipping.ShippingStatus status,
             @RequestParam(required = false) Long shipperId,
             RedirectAttributes redirectAttributes) {
-        orderService.updateShipping(id, status, shipperId);
-        redirectAttributes.addFlashAttribute("successMessage", "Shipping information updated.");
+        try {
+            orderService.updateShipping(id, status, shipperId);
+            redirectAttributes.addFlashAttribute("successMessage", "Đã cập nhật thông tin giao hàng.");
+        } catch (org.springframework.web.server.ResponseStatusException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", e.getReason());
+        }
         return "redirect:/admin/orders/" + id;
     }
 

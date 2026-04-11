@@ -11,7 +11,7 @@ document.addEventListener("DOMContentLoaded", function () {
             valueUnit.innerText = "%";
             valueUnitText.innerText = "%";
 
-            valueInput.step = 1;
+            valueInput.step = "any";
             valueInput.min = 1;
             valueInput.max = 100;
 
@@ -19,7 +19,7 @@ document.addEventListener("DOMContentLoaded", function () {
             valueUnit.innerText = "VND";
             valueUnitText.innerText = "₫";
 
-            valueInput.step = 1000;
+            valueInput.step = "any";
             valueInput.min = 1000;
             valueInput.removeAttribute("max");
         }

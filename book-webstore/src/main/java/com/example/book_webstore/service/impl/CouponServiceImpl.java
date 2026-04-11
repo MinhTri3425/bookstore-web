@@ -32,6 +32,7 @@ import com.example.book_webstore.repository.CouponRepository;
 import com.example.book_webstore.repository.CouponUsageRepository;
 import com.example.book_webstore.repository.CustomerOrderRepository;
 import com.example.book_webstore.repository.PaymentRepository;
+import com.example.book_webstore.strategy.coupon.CouponStrategyFactory;
 import com.example.book_webstore.repository.UserRepository;
 import com.example.book_webstore.service.CouponService;
 
@@ -45,6 +46,7 @@ public class CouponServiceImpl implements CouponService {
     private final CouponRepository couponRepository;
     private final CouponUsageRepository couponUsageRepository;
     private final BookRepository bookRepository;
+    private final CouponStrategyFactory couponStrategyFactory;
     private final CartItemRepository cartItemRepository;
     private final CustomerOrderRepository customerOrderRepository;
     private final UserRepository userRepository;
@@ -57,10 +59,11 @@ public class CouponServiceImpl implements CouponService {
             CartItemRepository cartItemRepository,
             CustomerOrderRepository customerOrderRepository,
             UserRepository userRepository,
-            PaymentRepository paymentRepository) {
+            PaymentRepository paymentRepository, CouponStrategyFactory couponStrategyFactory) {
         this.couponRepository = couponRepository;
         this.couponUsageRepository = couponUsageRepository;
         this.bookRepository = bookRepository;
+        this.couponStrategyFactory = couponStrategyFactory;
         this.cartItemRepository = cartItemRepository;
         this.customerOrderRepository = customerOrderRepository;
         this.userRepository = userRepository;
@@ -106,7 +109,12 @@ public class CouponServiceImpl implements CouponService {
     public void deleteCoupon(Long id) {
         Coupon coupon = couponRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Coupon not found"));
-        couponRepository.delete(coupon);
+        try {
+            couponRepository.delete(coupon);
+            couponRepository.flush();
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không thể xóa mã giảm giá này vì đã được áp dụng trong đơn hàng. Vui lòng vô hiệu hóa thay vì xóa.");
+        }
     }
 
     @Override
