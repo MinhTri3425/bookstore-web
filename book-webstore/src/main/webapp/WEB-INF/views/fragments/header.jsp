@@ -39,6 +39,9 @@
                                 <li><a class="dropdown-item text-danger fw-bold" href="${pageContext.request.contextPath}/admin/dashboard">Quản trị</a></li>
                                 <li><hr class="dropdown-divider"></li>
                             </sec:authorize>
+                            
+                            <li><a class="dropdown-item" href="${pageContext.request.contextPath}/profile">Thông tin cá nhân</a></li>
+                            
                             <li><a class="dropdown-item" href="${pageContext.request.contextPath}/order/history">Đơn hàng</a></li>
                             <li>
                                 <form action="${pageContext.request.contextPath}/logout" method="post" class="m-0">

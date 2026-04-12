@@ -35,4 +35,37 @@ public class UserServiceImpl implements UserService {
         // 5. Lưu vào database
         return userRepository.save(user);
     }
+    @Override
+    public UserDTO findByEmail(String email) {
+        User user = userRepository.findByEmail(email);
+        if (user == null) {
+            return null;
+        }
+        
+        // Map từ Entity sang DTO để hiển thị lên Form
+        UserDTO dto = new UserDTO();
+        dto.setId(user.getId());
+        dto.setEmail(user.getEmail());
+        dto.setName(user.getName());
+        dto.setPhoneNumber(user.getPhoneNumber());
+        dto.setRole(user.getRole());
+        dto.setShipper(user.isShipper());
+        
+        return dto;
+    }
+
+    @Override
+    public void updateProfile(String email, UserDTO userDTO) throws Exception {
+        User user = userRepository.findByEmail(email);
+        if (user == null) {
+            throw new Exception("Không tìm thấy người dùng!");
+        }
+        
+        // Chỉ cho phép cập nhật Tên và Số điện thoại
+        // (Không cho phép user tự cập nhật Email, Role hay quyền Shipper)
+        user.setName(userDTO.getName());
+        user.setPhoneNumber(userDTO.getPhoneNumber());
+        
+        userRepository.save(user);
+    }
 }

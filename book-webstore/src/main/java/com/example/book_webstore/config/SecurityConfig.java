@@ -48,7 +48,7 @@ public class SecurityConfig {
 
                         // Phân quyền cho Admin
                         .requestMatchers("/admin/**").hasRole("ADMIN")
-
+                        .requestMatchers("/profile/**").authenticated()
                         // Tất cả các request khác phải đăng nhập
                         .anyRequest().authenticated())
                 .formLogin(form -> form
