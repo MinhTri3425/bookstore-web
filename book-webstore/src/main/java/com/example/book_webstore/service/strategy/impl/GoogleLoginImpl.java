@@ -34,7 +34,7 @@ public class GoogleLoginImpl implements LoginStrategy{
         newUser.setPhoneNumber("0901234567"); 
         newUser.setRole(User.Role.USER);
         newUser.setPassword(passwordEncoder.encode("123456")); 
-        
+        newUser.setShipper(false); // Mặc định không phải Shipper
         return userRepository.save(newUser);
     }
 }

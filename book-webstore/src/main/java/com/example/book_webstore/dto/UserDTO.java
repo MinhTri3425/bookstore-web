@@ -21,5 +21,5 @@ public class UserDTO {
     private String phoneNumber;
     private User.Role role;
     private List<AddressDTO> addresses;
-
+    private boolean isShipper;
 }

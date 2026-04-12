@@ -346,7 +346,9 @@ public class OrderServiceImpl implements OrderService {
                 user.getName(),
                 user.getPhoneNumber(),
                 user.getRole(),
-                List.of());
+                List.of(),
+                user.isShipper()
+        );
     }
 
     private PaymentDTO toPaymentDto(Payment payment) {
