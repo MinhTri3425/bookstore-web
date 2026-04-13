@@ -27,7 +27,7 @@
         </div>
         <div class="topbar-actions">
             <div class="badge">So luong trong gio: <%= cartItemCount %></div>
-            <a class="btn btn-primary" href="<%= request.getContextPath() %>/Cart/">Xem gio hang</a>
+            <a class="btn btn-primary" href="<%= request.getContextPath() %>/cart">Xem gio hang</a>
         </div>
     </header>
 
@@ -56,7 +56,7 @@
                     <p class="desc"><%= book.getDescription() == null ? "" : book.getDescription() %></p>
                     <p class="price"><%= book.getPrice() %> VND</p>
 
-                    <form method="post" action="<%= request.getContextPath() %>/Cart/add" class="add-form">
+                    <form method="post" action="<%= request.getContextPath() %>/cart/add" class="add-form">
                         <input type="hidden" name="bookId" value="<%= book.getId() %>">
                         <input type="number" min="1" name="quantity" value="1" class="qty-input">
                         <button type="submit" class="btn btn-primary">Them vao gio</button>

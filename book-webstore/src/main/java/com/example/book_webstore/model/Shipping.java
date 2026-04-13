@@ -46,6 +46,8 @@ public class Shipping {
     @ToString.Exclude
     private Shipper shipper;
 
+    private String deliveryAddress;
+
     private LocalDateTime createdAt;
 
     private String CustomerName;

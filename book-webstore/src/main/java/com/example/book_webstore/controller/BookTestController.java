@@ -29,7 +29,7 @@ public class BookTestController {
     // return "redirect:/BookTest/";
     // }
 
-    @GetMapping({ "/BookTest", "/BookTest/", "/shop/books" })
+    @GetMapping({ "/BookTest", "/BookTest/" })
     public String booksPage(Model model,
             HttpSession session,
             @RequestParam(value = "message", required = false) String message) {
