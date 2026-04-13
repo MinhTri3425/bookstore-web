@@ -34,8 +34,10 @@ public class SecurityConfig {
                         // QUAN TRỌNG: Cho phép truy cập tài nguyên tĩnh và THƯ MỤC UPLOADS (ảnh sách)
                         .requestMatchers(
                                 "/",
+                                "/register",
                                 "/login",
                                 "/error",
+                                "/mock-login",
                                 "/css/**",
                                 "/js/**",
                                 "/images/**",
@@ -46,7 +48,7 @@ public class SecurityConfig {
 
                         // Phân quyền cho Admin
                         .requestMatchers("/admin/**").hasRole("ADMIN")
-
+                        .requestMatchers("/profile/**").authenticated()
                         // Tất cả các request khác phải đăng nhập
                         .anyRequest().authenticated())
                 .formLogin(form -> form

@@ -30,3 +30,4 @@ Mật khẩu: 123456
 Kết quả: Sau khi ấn Đăng nhập, hệ thống sẽ chuyển hướng bạn về trang chủ mua sắm: /home.
 
 Note: Cái này mới là bản test các role nha ae
+Note2: Thêm login bằng gg và fb nhưng thực tế 2 chức năng này log bằng mail đc thiết lập sẵn với pass 123456 để áp dụng strategy và factory 
