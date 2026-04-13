@@ -22,6 +22,10 @@ public class CustomerOrder {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private LocalDateTime createdAt;
+    private String receiverName;
+    private String address;
+    private String phoneNumber;
+    private String note;
 
     public static enum OrderStatus {
         PENDING, CONFIRMED, COMPLETED, CANCELLED

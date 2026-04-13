@@ -1,6 +1,7 @@
 package com.example.book_webstore.repository;
 
 import java.util.Optional;
+import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,6 +14,7 @@ import com.example.book_webstore.model.CustomerOrder;
 
 public interface CustomerOrderRepository extends JpaRepository<CustomerOrder, Long> {
 
+    // 🔥 FULL: items + customer + coupon + payment + shipping
     @EntityGraph(attributePaths = {"items", "customer", "coupon", "payment", "shipping"})
     Page<CustomerOrder> findAllBy(Pageable pageable);
 
@@ -23,7 +25,13 @@ public interface CustomerOrderRepository extends JpaRepository<CustomerOrder, Lo
     @Query("select o from CustomerOrder o where o.id = :id")
     Optional<CustomerOrder> findListItemById(Long id);
 
-    @EntityGraph(attributePaths = {"items", "items.book", "customer", "coupon", "payment", "shipping", "shipping.shipper"})
+    // 🔥 DETAIL: thêm shipper
+    @EntityGraph(attributePaths = {
+            "items", "items.book",
+            "customer", "coupon",
+            "payment",
+            "shipping", "shipping.shipper"
+    })
     @Query("select o from CustomerOrder o where o.id = :id")
     Optional<CustomerOrder> findDetailById(Long id);
 
@@ -52,9 +60,16 @@ public interface CustomerOrderRepository extends JpaRepository<CustomerOrder, Lo
             where o.id = :id
               and coalesce(c.id, pu.id) = :customerId
             """)
-    Optional<CustomerOrder> findCustomerListItemById(@Param("customerId") Long customerId, @Param("id") Long id);
+    Optional<CustomerOrder> findCustomerListItemById(
+            @Param("customerId") Long customerId,
+            @Param("id") Long id);
 
-    @EntityGraph(attributePaths = {"items", "items.book", "customer", "coupon", "payment", "shipping", "shipping.shipper"})
+    @EntityGraph(attributePaths = {
+            "items", "items.book",
+            "customer", "coupon",
+            "payment",
+            "shipping", "shipping.shipper"
+    })
     @Query("""
             select o
             from CustomerOrder o
@@ -64,5 +79,11 @@ public interface CustomerOrderRepository extends JpaRepository<CustomerOrder, Lo
             where o.id = :id
               and coalesce(c.id, pu.id) = :customerId
             """)
-    Optional<CustomerOrder> findCustomerDetailById(@Param("customerId") Long customerId, @Param("id") Long id);
+    Optional<CustomerOrder> findCustomerDetailById(
+            @Param("customerId") Long customerId,
+            @Param("id") Long id);
+
+    // 🔥 GIỮ từ Shipping branch (rất quan trọng)
+    @EntityGraph(attributePaths = {"customer", "payment"})
+    List<CustomerOrder> findByStatusAndShippingIsNull(CustomerOrder.OrderStatus status);
 }

@@ -5,11 +5,7 @@ import java.security.Principal;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.example.book_webstore.dto.CustomerOrderDTO;
@@ -19,23 +15,36 @@ import com.example.book_webstore.model.Shipping;
 import com.example.book_webstore.model.User;
 import com.example.book_webstore.repository.UserRepository;
 import com.example.book_webstore.service.OrderService;
+import com.example.book_webstore.service.ShippingService;
+import com.example.book_webstore.service.ShipperService;
 
 @Controller
 @RequestMapping
 public class OrderController {
 
     private final OrderService orderService;
+    private final ShippingService shippingService;
+    private final ShipperService shipperService;
     private final UserRepository userRepository;
 
-    public OrderController(OrderService orderService, UserRepository userRepository) {
+    public OrderController(
+            OrderService orderService,
+            ShippingService shippingService,
+            ShipperService shipperService,
+            UserRepository userRepository) {
         this.orderService = orderService;
+        this.shippingService = shippingService;
+        this.shipperService = shipperService;
         this.userRepository = userRepository;
     }
 
+    // 🔥 GIỮ LOGIC ROLE (develop)
     @GetMapping("/order")
     public String orderHub(Principal principal) {
         User currentUser = requireCurrentUser(principal);
-        return currentUser.getRole() == User.Role.ADMIN ? "redirect:/admin/orders" : "redirect:/my-orders";
+        return currentUser.getRole() == User.Role.ADMIN
+                ? "redirect:/admin/orders"
+                : "redirect:/my-orders";
     }
 
     @GetMapping("/admin/orders")
@@ -45,22 +54,29 @@ public class OrderController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             Model model) {
+
         Page<CustomerOrderDTO> orderPage = orderService.getAdminOrderPage(orderId, status, page, size);
         populateAdminListModel(model, orderPage, orderId, status);
         return "admin/orders";
     }
 
+    // 🔥 GIỮ VERSION develop (URL rõ ràng)
     @GetMapping("/admin/orders/{id}")
     public String adminDetail(@PathVariable Long id, Model model) {
         CustomerOrderDTO order = orderService.getAdminOrderDetail(id);
+
         model.addAttribute("pageTitle", "Admin Order #" + order.getId());
         model.addAttribute("order", order);
         model.addAttribute("viewMode", "admin");
         model.addAttribute("backPath", "/admin/orders");
+
         model.addAttribute("orderStatusOptions", CustomerOrder.OrderStatus.values());
         model.addAttribute("paymentStatusOptions", Payment.PaymentStatus.values());
         model.addAttribute("shippingStatusOptions", Shipping.ShippingStatus.values());
-        model.addAttribute("shipperOptions", orderService.getShipperOptions());
+
+        // 🔥 GIỮ SHIPPER từ Shipping branch
+        model.addAttribute("shipperOptions", shipperService.getAllShippers());
+
         return "admin/order-detail";
     }
 
@@ -92,18 +108,26 @@ public class OrderController {
         return "redirect:/admin/orders/" + id;
     }
 
+    // 🔥 MERGE LOGIC SHIPPING (ưu tiên service riêng)
     @PostMapping("/admin/orders/{id}/shipping")
     public String updateShipping(
             @PathVariable Long id,
             @RequestParam Shipping.ShippingStatus status,
             @RequestParam(required = false) Long shipperId,
             RedirectAttributes redirectAttributes) {
+
         try {
-            orderService.updateShipping(id, status, shipperId);
+            shippingService.updateStatus(id, status);
+
+            if (shipperId != null) {
+                shippingService.assignShipperManual(id, shipperId);
+            }
+
             redirectAttributes.addFlashAttribute("successMessage", "Đã cập nhật thông tin giao hàng.");
-        } catch (org.springframework.web.server.ResponseStatusException e) {
-            redirectAttributes.addFlashAttribute("errorMessage", e.getReason());
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
         }
+
         return "redirect:/admin/orders/" + id;
     }
 
@@ -114,6 +138,7 @@ public class OrderController {
             @RequestParam(defaultValue = "10") int size,
             Principal principal,
             Model model) {
+
         Long customerId = requireCurrentUser(principal).getId();
         Page<CustomerOrderDTO> orderPage = orderService.getCustomerOrderPage(customerId, status, page, size);
         populateCustomerListModel(model, orderPage, status);
@@ -125,12 +150,15 @@ public class OrderController {
             @PathVariable Long id,
             Principal principal,
             Model model) {
+
         Long customerId = requireCurrentUser(principal).getId();
         CustomerOrderDTO order = orderService.getCustomerOrderDetail(customerId, id);
+
         model.addAttribute("pageTitle", "My Order #" + order.getId());
         model.addAttribute("order", order);
         model.addAttribute("viewMode", "customer");
         model.addAttribute("backPath", "/my-orders");
+
         return "user/order-detail";
     }
 
@@ -139,8 +167,10 @@ public class OrderController {
             @PathVariable Long id,
             Principal principal,
             RedirectAttributes redirectAttributes) {
+
         Long customerId = requireCurrentUser(principal).getId();
         orderService.cancelCustomerOrder(customerId, id);
+
         redirectAttributes.addFlashAttribute("successMessage", "Order cancelled.");
         return "redirect:/my-orders/" + id;
     }
@@ -150,14 +180,12 @@ public class OrderController {
             Page<CustomerOrderDTO> orderPage,
             String orderId,
             CustomerOrder.OrderStatus status) {
+
         model.addAttribute("pageTitle", "Admin Orders");
         model.addAttribute("pageHeading", "Order Management");
-        model.addAttribute("pageEyebrow", "Admin console");
         model.addAttribute("orders", orderPage.getContent());
         model.addAttribute("currentPage", orderPage.getNumber());
         model.addAttribute("totalPages", orderPage.getTotalPages());
-        model.addAttribute("totalElements", orderPage.getTotalElements());
-        model.addAttribute("pageSize", orderPage.getSize());
         model.addAttribute("statusOptions", CustomerOrder.OrderStatus.values());
         model.addAttribute("selectedStatus", status == null ? "" : status.name());
         model.addAttribute("searchOrderId", orderId == null ? "" : orderId.trim());
@@ -170,17 +198,14 @@ public class OrderController {
             Model model,
             Page<CustomerOrderDTO> orderPage,
             CustomerOrder.OrderStatus status) {
+
         model.addAttribute("pageTitle", "My Orders");
         model.addAttribute("pageHeading", "My Orders");
-        model.addAttribute("pageEyebrow", "Tai khoan cua toi");
         model.addAttribute("orders", orderPage.getContent());
         model.addAttribute("currentPage", orderPage.getNumber());
         model.addAttribute("totalPages", orderPage.getTotalPages());
-        model.addAttribute("totalElements", orderPage.getTotalElements());
-        model.addAttribute("pageSize", orderPage.getSize());
         model.addAttribute("statusOptions", CustomerOrder.OrderStatus.values());
         model.addAttribute("selectedStatus", status == null ? "" : status.name());
-        model.addAttribute("searchOrderId", "");
         model.addAttribute("viewMode", "customer");
         model.addAttribute("listPath", "/my-orders");
         model.addAttribute("detailBasePath", "/my-orders");

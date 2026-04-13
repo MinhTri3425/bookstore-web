@@ -1,6 +1,7 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
+
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -12,209 +13,160 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/admin.css">
 </head>
-<body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="${pageContext.request.contextPath}/admin/dashboard">
-                <i class="fas fa-cog"></i> Admin Panel
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
+<body class="bg-light">
+
+    <jsp:include page="/WEB-INF/views/fragments/admin-header.jsp" />
+
+    <div class="container py-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="fw-bold mb-1"><i class="fas fa-chart-line text-primary me-2"></i>TỔNG QUAN HỆ THỐNG</h2>
+                <p class="text-muted small mb-0">Chào mừng bạn trở lại, Admin. Đây là tình hình kinh doanh hôm nay.</p>
+            </div>
+            <button class="btn btn-white shadow-sm border" onclick="location.reload()">
+                <i class="fas fa-sync-alt"></i> Làm mới dữ liệu
             </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link active" href="${pageContext.request.contextPath}/admin/dashboard">
-                            <i class="fas fa-tachometer-alt"></i> Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="${pageContext.request.contextPath}/admin/books">
-                            <i class="fas fa-book"></i> Quản lý sách
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="${pageContext.request.contextPath}/admin/authors">
-                            <i class="fas fa-user"></i> Tác giả
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="${pageContext.request.contextPath}/admin/categories">
-                            <i class="fas fa-tags"></i> Danh mục
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="${pageContext.request.contextPath}/admin/coupons">
-                            <i class="fas fa-ticket-alt"></i> Coupon
-                        </a>
-                    </li>
-                </ul>
-                <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <a class="nav-link" href="${pageContext.request.contextPath}/">
-                            <i class="fas fa-home"></i> Về trang chủ
-                        </a>
-                    </li>
-                </ul>
+        </div>
+
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm bg-primary text-white">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase small opacity-75">Tổng số đầu sách</h6>
+                            <h2 class="fw-bold mb-0">${not empty totalBooks ? totalBooks : 0}</h2>
+                        </div>
+                        <i class="fas fa-book fa-3x opacity-25"></i>
+                    </div>
+                    <a href="${pageContext.request.contextPath}/admin/books" class="card-footer bg-dark bg-opacity-10 text-white text-decoration-none small text-center">
+                        Xem chi tiết kho <i class="fas fa-chevron-right ms-1"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm bg-success text-white">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase small opacity-75">Sách còn hàng</h6>
+                            <h2 class="fw-bold mb-0">${not empty inStockBooks ? inStockBooks : 0}</h2>
+                        </div>
+                        <i class="fas fa-check-double fa-3x opacity-25"></i>
+                    </div>
+                    <div class="card-footer bg-dark bg-opacity-10 small text-center">Tình trạng kho ổn định</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm bg-danger text-white">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase small opacity-75">Sách hết hàng</h6>
+                            <h2 class="fw-bold mb-0">${not empty outOfStockBooks ? outOfStockBooks : 0}</h2>
+                        </div>
+                        <i class="fas fa-exclamation-circle fa-3x opacity-25"></i>
+                    </div>
+                    <a href="${pageContext.request.contextPath}/admin/books?stock=0" class="card-footer bg-dark bg-opacity-10 text-white text-decoration-none small text-center">
+                        Cần nhập thêm hàng <i class="fas fa-arrow-up ms-1"></i>
+                    </a>
+                </div>
             </div>
         </div>
-    </nav>
 
-    <div class="container-fluid py-4">
-        <div class="row">
-            <div class="col-md-3">
-                <div class="card border-0 shadow-sm overflow-hidden">
-                    <div class="card-header bg-white py-3 border-0">
-                        <h5 class="mb-0 fw-bold">Menu Quản lý</h5>
-                    </div>
-                    <div class="list-group list-group-flush sidebar-nav">
-                        <a href="${pageContext.request.contextPath}/admin/dashboard" class="list-group-item list-group-item-action border-0 px-4 py-3 active">
-                            <i class="fas fa-tachometer-alt me-2"></i> Dashboard
-                        </a>
-                        <a href="${pageContext.request.contextPath}/admin/books" class="list-group-item list-group-item-action border-0 px-4 py-3">
-                            <i class="fas fa-book me-2"></i> Quản lý sách
-                        </a>
-                        <a href="${pageContext.request.contextPath}/admin/books/add" class="list-group-item list-group-item-action border-0 px-4 py-3">
-                            <i class="fas fa-plus me-2"></i> Thêm sách mới
-                        </a>
-                        <a href="${pageContext.request.contextPath}/admin/orders" class="list-group-item list-group-item-action border-0 px-4 py-3">
-                            <i class="fas fa-receipt me-2"></i> Đơn hàng
-                        </a>
-                        <a href="${pageContext.request.contextPath}/admin/authors" class="list-group-item list-group-item-action border-0 px-4 py-3">
-                            <i class="fas fa-user me-2"></i> Tác giả
-                        </a>
-                        <a href="${pageContext.request.contextPath}/admin/categories" class="list-group-item list-group-item-action border-0 px-4 py-3">
-                            <i class="fas fa-tags me-2"></i> Danh mục
-                        </a>
-                        <a href="${pageContext.request.contextPath}/admin/coupons" class="list-group-item list-group-item-action border-0 px-4 py-3">
-                            <i class="fas fa-ticket-alt me-2"></i> Coupon
-                        </a>
+        <div class="row g-4 mb-4">
+            <div class="col-md-6">
+                <div class="card border-0 shadow-sm border-start border-primary border-4">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="text-muted small text-uppercase">Đơn hàng mới chờ xác nhận</h6>
+                                <h3 class="fw-bold text-primary">${not empty pendingOrders ? pendingOrders : 0}</h3>
+                            </div>
+                            <div class="icon-shape bg-primary-subtle text-primary rounded-circle p-3">
+                                <i class="fas fa-shopping-cart fa-lg"></i>
+                            </div>
+                        </div>
+                        <a href="${pageContext.request.contextPath}/admin/orders?status=PENDING" class="small text-primary text-decoration-none fw-bold">Xử lý ngay -></a>
                     </div>
                 </div>
             </div>
-
-            <div class="col-md-9">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h2><i class="fas fa-tachometer-alt"></i> Dashboard</h2>
-                    <div>
-                        <button class="btn btn-primary" onclick="location.reload()">
-                            <i class="fas fa-sync"></i> Làm mới
-                        </button>
-                    </div>
-                </div>
-
-                <div class="row mb-4">
-                    <div class="col-md-4">
-                        <div class="card bg-primary text-white shadow-sm border-0">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between">
-                                    <div>
-                                        <h5 class="card-title">Tổng sách</h5>
-                                        <h3>${not empty totalBooks ? totalBooks : 0}</h3>
-                                    </div>
-                                    <div class="align-self-center">
-                                        <i class="fas fa-book fa-2x"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="card bg-success text-white shadow-sm border-0">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between">
-                                    <div>
-                                        <h5 class="card-title">Còn hàng</h5>
-                                        <h3>${not empty inStockBooks ? inStockBooks : 0}</h3>
-                                    </div>
-                                    <div class="align-self-center">
-                                        <i class="fas fa-check-circle fa-2x"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="card bg-warning text-white shadow-sm border-0">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between">
-                                    <div>
-                                        <h5 class="card-title">Hết hàng</h5>
-                                        <h3>${not empty outOfStockBooks ? outOfStockBooks : 0}</h3>
-                                    </div>
-                                    <div class="align-self-center">
-                                        <i class="fas fa-exclamation-triangle fa-2x"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-white py-3">
-                        <h5 class="mb-0 fw-bold"><i class="fas fa-clock text-primary"></i> Sách gần đây</h5>
-                    </div>
+            <div class="col-md-6">
+                <div class="card border-0 shadow-sm border-start border-warning border-4">
                     <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>ID</th>
-                                        <th>Tiêu đề</th>
-                                        <th>Tác giả</th>
-                                        <th>Giá</th>
-                                        <th>Tồn kho</th>
-                                        <th class="text-center">Thao tác</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <c:forEach var="book" items="${books}" varStatus="status">
-                                        <c:if test="${status.index < 5}">
-                                            <tr>
-                                                <td>${book.id}</td>
-                                                <td class="fw-bold">${book.title}</td>
-                                                <td>${book.authorName}</td>
-                                                <td class="text-danger fw-bold">
-                                                    <fmt:formatNumber value="${book.price}" pattern="#,###"/> ₫
-                                                </td>
-                                                <td>
-                                                    <c:choose>
-                                                        <c:when test="${book.stock > 0}">
-                                                            <span class="badge bg-success">${book.stock}</span>
-                                                        </c:when>
-                                                        <c:otherwise>
-                                                            <span class="badge bg-danger">Hết hàng</span>
-                                                        </c:otherwise>
-                                                    </c:choose>
-                                                </td>
-                                                <td class="text-center">
-                                                    <a href="${pageContext.request.contextPath}/admin/books/edit?id=${book.id}" class="btn btn-sm btn-outline-primary">
-                                                        <i class="fas fa-edit"></i>
-                                                    </a>
-                                                </td>
-                                            </tr>
-                                        </c:if>
-                                    </c:forEach>
-                                    <c:if test="${empty books}">
-                                        <tr>
-                                            <td colspan="6" class="text-center py-4 text-muted">Chưa có dữ liệu sách.</td>
-                                        </tr>
-                                    </c:if>
-                                </tbody>
-                            </table>
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="text-muted small text-uppercase">Vận đơn đang di chuyển</h6>
+                                <h3 class="fw-bold text-warning">${not empty shippingOrders ? shippingOrders : 0}</h3>
+                            </div>
+                            <div class="icon-shape bg-warning-subtle text-warning rounded-circle p-3">
+                                <i class="fas fa-truck-fast fa-lg"></i>
+                            </div>
                         </div>
-                        <div class="text-center mt-3">
-                            <a href="${pageContext.request.contextPath}/admin/books" class="btn btn-primary px-4 shadow-sm">
-                                <i class="fas fa-list"></i> Xem tất cả sách
-                            </a>
-                        </div>
+                        <a href="${pageContext.request.contextPath}/admin/shipping" class="small text-warning text-decoration-none fw-bold">Theo dõi lộ trình -></a>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold"><i class="fas fa-history text-primary me-2"></i>Sách vừa cập nhật</h5>
+                <a href="${pageContext.request.contextPath}/admin/books" class="btn btn-sm btn-outline-primary">Tất cả sách</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4">Mã</th>
+                                <th>Tiêu đề</th>
+                                <th>Tác giả</th>
+                                <th class="text-end">Giá</th>
+                                <th class="text-center">Kho</th>
+                                <th class="text-center">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <c:forEach var="book" items="${books}" varStatus="status">
+                                <c:if test="${status.index < 5}">
+                                    <tr>
+                                        <td class="ps-4 text-muted">#${book.id}</td>
+                                        <td class="fw-bold">${book.title}</td>
+                                        <td><span class="badge bg-light text-dark border-0 fw-normal">${book.authorName}</span></td>
+                                        <td class="text-end text-danger fw-bold">
+                                            <fmt:formatNumber value="${book.price}" pattern="#,###"/> ₫
+                                        </td>
+                                        <td class="text-center">
+                                            <c:choose>
+                                                <c:when test="${book.stock > 10}">
+                                                    <span class="badge bg-success-subtle text-success">${book.stock}</span>
+                                                </c:when>
+                                                <c:when test="${book.stock > 0}">
+                                                    <span class="badge bg-warning-subtle text-warning">${book.stock}</span>
+                                                </c:when>
+                                                <c:otherwise>
+                                                    <span class="badge bg-danger-subtle text-danger">Hết hàng</span>
+                                                </c:otherwise>
+                                            </c:choose>
+                                        </td>
+                                        <td class="text-center">
+                                            <a href="${pageContext.request.contextPath}/admin/books/edit?id=${book.id}" class="btn btn-sm btn-link text-primary p-0">
+                                                <i class="fas fa-pencil-alt"></i> Sửa
+                                            </a>
+                                        </td>
+                                    </tr>
+                                </c:if>
+                            </c:forEach>
+                            <c:if test="${empty books}">
+                                <tr>
+                                    <td colspan="6" class="text-center py-5 text-muted">Hệ thống chưa có dữ liệu sách.</td>
+                                </tr>
+                            </c:if>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
-
+    <jsp:include page="/WEB-INF/views/fragments/footer.jsp" />
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

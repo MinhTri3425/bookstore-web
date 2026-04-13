@@ -22,4 +22,5 @@ public class UserDTO {
     private User.Role role;
     private List<AddressDTO> addresses;
     private boolean isShipper;
+
 }

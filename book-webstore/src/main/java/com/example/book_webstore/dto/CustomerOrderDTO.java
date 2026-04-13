@@ -39,4 +39,8 @@ public class CustomerOrderDTO {
     private boolean canComplete;
     private boolean canAdminCancel;
 
+    private String customerAddress;
+    private String customerPhone;
+    private String receiverName;
+    private String note;
 }
