@@ -32,7 +32,11 @@ public class Coupon {
     @Enumerated(EnumType.STRING)
     private CouponType type;
     private BigDecimal value;
+    private boolean active = true;
     private int maxUsePerUser;
+    private Integer totalUsageLimit;
+    private BigDecimal minOrderValue;
+    private BigDecimal maxDiscountValue;
     private LocalDateTime startAt;
     private LocalDateTime endAt;
 

@@ -1,5 +1,7 @@
 package com.example.book_webstore.controller;
 
+import java.security.Principal;
+
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -14,6 +16,8 @@ import com.example.book_webstore.dto.CustomerOrderDTO;
 import com.example.book_webstore.model.CustomerOrder;
 import com.example.book_webstore.model.Payment;
 import com.example.book_webstore.model.Shipping;
+import com.example.book_webstore.model.User;
+import com.example.book_webstore.repository.UserRepository;
 import com.example.book_webstore.service.OrderService;
 
 @Controller
@@ -21,12 +25,20 @@ import com.example.book_webstore.service.OrderService;
 public class OrderController {
 
     private final OrderService orderService;
+    private final UserRepository userRepository;
 
-    public OrderController(OrderService orderService) {
+    public OrderController(OrderService orderService, UserRepository userRepository) {
         this.orderService = orderService;
+        this.userRepository = userRepository;
     }
 
-    @GetMapping({"/order", "/admin/orders"})
+    @GetMapping("/order")
+    public String orderHub(Principal principal) {
+        User currentUser = requireCurrentUser(principal);
+        return currentUser.getRole() == User.Role.ADMIN ? "redirect:/admin/orders" : "redirect:/my-orders";
+    }
+
+    @GetMapping("/admin/orders")
     public String adminList(
             @RequestParam(required = false) String orderId,
             @RequestParam(required = false) CustomerOrder.OrderStatus status,
@@ -35,10 +47,10 @@ public class OrderController {
             Model model) {
         Page<CustomerOrderDTO> orderPage = orderService.getAdminOrderPage(orderId, status, page, size);
         populateAdminListModel(model, orderPage, orderId, status);
-        return "order/show";
+        return "admin/orders";
     }
 
-    @GetMapping({"/order/{id}", "/admin/orders/{id}"})
+    @GetMapping("/admin/orders/{id}")
     public String adminDetail(@PathVariable Long id, Model model) {
         CustomerOrderDTO order = orderService.getAdminOrderDetail(id);
         model.addAttribute("pageTitle", "Admin Order #" + order.getId());
@@ -49,7 +61,7 @@ public class OrderController {
         model.addAttribute("paymentStatusOptions", Payment.PaymentStatus.values());
         model.addAttribute("shippingStatusOptions", Shipping.ShippingStatus.values());
         model.addAttribute("shipperOptions", orderService.getShipperOptions());
-        return "order/detail";
+        return "admin/order-detail";
     }
 
     @PostMapping("/admin/orders/{id}/status")
@@ -57,8 +69,12 @@ public class OrderController {
             @PathVariable Long id,
             @RequestParam CustomerOrder.OrderStatus status,
             RedirectAttributes redirectAttributes) {
-        orderService.updateOrderStatus(id, status);
-        redirectAttributes.addFlashAttribute("successMessage", "Order status updated.");
+        try {
+            orderService.updateOrderStatus(id, status);
+            redirectAttributes.addFlashAttribute("successMessage", "Đã cập nhật trạng thái đơn hàng.");
+        } catch (org.springframework.web.server.ResponseStatusException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", e.getReason());
+        }
         return "redirect:/admin/orders/" + id;
     }
 
@@ -67,8 +83,12 @@ public class OrderController {
             @PathVariable Long id,
             @RequestParam Payment.PaymentStatus status,
             RedirectAttributes redirectAttributes) {
-        orderService.updatePayment(id, status);
-        redirectAttributes.addFlashAttribute("successMessage", "Payment status updated.");
+        try {
+            orderService.updatePayment(id, status);
+            redirectAttributes.addFlashAttribute("successMessage", "Đã cập nhật thanh toán.");
+        } catch (org.springframework.web.server.ResponseStatusException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", e.getReason());
+        }
         return "redirect:/admin/orders/" + id;
     }
 
@@ -78,45 +98,51 @@ public class OrderController {
             @RequestParam Shipping.ShippingStatus status,
             @RequestParam(required = false) Long shipperId,
             RedirectAttributes redirectAttributes) {
-        orderService.updateShipping(id, status, shipperId);
-        redirectAttributes.addFlashAttribute("successMessage", "Shipping information updated.");
+        try {
+            orderService.updateShipping(id, status, shipperId);
+            redirectAttributes.addFlashAttribute("successMessage", "Đã cập nhật thông tin giao hàng.");
+        } catch (org.springframework.web.server.ResponseStatusException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", e.getReason());
+        }
         return "redirect:/admin/orders/" + id;
     }
 
     @GetMapping("/my-orders")
     public String customerList(
-            @RequestParam(required = false) Long customerId,
             @RequestParam(required = false) CustomerOrder.OrderStatus status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
+            Principal principal,
             Model model) {
+        Long customerId = requireCurrentUser(principal).getId();
         Page<CustomerOrderDTO> orderPage = orderService.getCustomerOrderPage(customerId, status, page, size);
-        populateCustomerListModel(model, orderPage, customerId, status);
-        return "order/show";
+        populateCustomerListModel(model, orderPage, status);
+        return "user/orders";
     }
 
     @GetMapping("/my-orders/{id}")
     public String customerDetail(
             @PathVariable Long id,
-            @RequestParam Long customerId,
+            Principal principal,
             Model model) {
+        Long customerId = requireCurrentUser(principal).getId();
         CustomerOrderDTO order = orderService.getCustomerOrderDetail(customerId, id);
         model.addAttribute("pageTitle", "My Order #" + order.getId());
         model.addAttribute("order", order);
         model.addAttribute("viewMode", "customer");
-        model.addAttribute("selectedCustomerId", customerId);
         model.addAttribute("backPath", "/my-orders");
-        return "order/detail";
+        return "user/order-detail";
     }
 
     @PostMapping("/my-orders/{id}/cancel")
     public String cancelCustomerOrder(
             @PathVariable Long id,
-            @RequestParam Long customerId,
+            Principal principal,
             RedirectAttributes redirectAttributes) {
+        Long customerId = requireCurrentUser(principal).getId();
         orderService.cancelCustomerOrder(customerId, id);
         redirectAttributes.addFlashAttribute("successMessage", "Order cancelled.");
-        return "redirect:/my-orders/" + id + "?customerId=" + customerId;
+        return "redirect:/my-orders/" + id;
     }
 
     private void populateAdminListModel(
@@ -143,11 +169,10 @@ public class OrderController {
     private void populateCustomerListModel(
             Model model,
             Page<CustomerOrderDTO> orderPage,
-            Long customerId,
             CustomerOrder.OrderStatus status) {
         model.addAttribute("pageTitle", "My Orders");
         model.addAttribute("pageHeading", "My Orders");
-        model.addAttribute("pageEyebrow", "Customer view");
+        model.addAttribute("pageEyebrow", "Tai khoan cua toi");
         model.addAttribute("orders", orderPage.getContent());
         model.addAttribute("currentPage", orderPage.getNumber());
         model.addAttribute("totalPages", orderPage.getTotalPages());
@@ -159,7 +184,16 @@ public class OrderController {
         model.addAttribute("viewMode", "customer");
         model.addAttribute("listPath", "/my-orders");
         model.addAttribute("detailBasePath", "/my-orders");
-        model.addAttribute("selectedCustomerId", customerId);
-        model.addAttribute("customerOptions", orderService.getCustomerOptions());
+    }
+
+    private User requireCurrentUser(Principal principal) {
+        if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
+            throw new IllegalStateException("Authenticated user is required");
+        }
+        User user = userRepository.findByEmail(principal.getName());
+        if (user == null) {
+            throw new IllegalStateException("Authenticated user not found");
+        }
+        return user;
     }
 }

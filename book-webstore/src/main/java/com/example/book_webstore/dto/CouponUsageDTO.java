@@ -11,8 +11,10 @@ import lombok.Setter;
 @NoArgsConstructor
 public class CouponUsageDTO {
     private Long id;
-    private String couponId;
-    private String userId;
+    private Long couponId;
+    private String couponCode;
+    private Long userId;
+    private String customerEmail;
+    private String customerName;
     private int usageCount;
-
 }

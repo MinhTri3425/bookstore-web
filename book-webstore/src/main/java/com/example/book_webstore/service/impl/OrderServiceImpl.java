@@ -32,6 +32,7 @@ import com.example.book_webstore.model.Payment;
 import com.example.book_webstore.model.Shipper;
 import com.example.book_webstore.model.Shipping;
 import com.example.book_webstore.model.User;
+import com.example.book_webstore.repository.CouponUsageRepository;
 import com.example.book_webstore.repository.CustomerOrderRepository;
 import com.example.book_webstore.repository.PaymentRepository;
 import com.example.book_webstore.repository.ShipperRepository;
@@ -51,19 +52,46 @@ public class OrderServiceImpl implements OrderService {
     private final ShippingRepository shippingRepository;
     private final UserRepository userRepository;
     private final ShipperRepository shipperRepository;
+    private final CouponUsageRepository couponUsageRepository;
 
     public OrderServiceImpl(
             CustomerOrderRepository customerOrderRepository,
             PaymentRepository paymentRepository,
             ShippingRepository shippingRepository,
             UserRepository userRepository,
-            ShipperRepository shipperRepository) {
+            ShipperRepository shipperRepository,
+            CouponUsageRepository couponUsageRepository) {
         this.customerOrderRepository = customerOrderRepository;
         this.paymentRepository = paymentRepository;
         this.shippingRepository = shippingRepository;
         this.userRepository = userRepository;
         this.shipperRepository = shipperRepository;
+        this.couponUsageRepository = couponUsageRepository;
     }
+
+    // ─── Private helpers ────────────────────────────────────────────────────────
+
+    /**
+     * Khôi phục lượt dùng coupon khi đơn hàng bị hủy.
+     * Nếu usageCount về 0 thì xoá hẳn bản ghi CouponUsage.
+     */
+    private void restoreCouponUsage(CustomerOrder order) {
+        if (order.getCoupon() != null && order.getCustomer() != null) {
+            couponUsageRepository
+                .findByCouponIdAndCustomerId(order.getCoupon().getId(), order.getCustomer().getId())
+                .ifPresent(usage -> {
+                    int next = usage.getUsageCount() - 1;
+                    if (next <= 0) {
+                        couponUsageRepository.delete(usage);
+                    } else {
+                        usage.setUsageCount(next);
+                        couponUsageRepository.save(usage);
+                    }
+                });
+        }
+    }
+
+    // ─── Admin queries ───────────────────────────────────────────────────────────
 
     @Override
     public Page<CustomerOrderDTO> getAdminOrderPage(String orderId, CustomerOrder.OrderStatus status, int page,
@@ -90,6 +118,8 @@ public class OrderServiceImpl implements OrderService {
         return toCustomerOrderDto(order, true);
     }
 
+    // ─── Customer queries ────────────────────────────────────────────────────────
+
     @Override
     public Page<CustomerOrderDTO> getCustomerOrderPage(Long customerId, CustomerOrder.OrderStatus status, int page,
             int size) {
@@ -110,6 +140,8 @@ public class OrderServiceImpl implements OrderService {
         return toCustomerOrderDto(order, true);
     }
 
+    // ─── Customer actions ────────────────────────────────────────────────────────
+
     @Override
     @Transactional
     public void cancelCustomerOrder(Long customerId, Long id) {
@@ -123,8 +155,11 @@ public class OrderServiceImpl implements OrderService {
 
         attachCustomerFromPaymentIfMissing(order);
         order.setStatus(CustomerOrder.OrderStatus.CANCELLED);
+        restoreCouponUsage(order);
         customerOrderRepository.save(order);
     }
+
+    // ─── Admin actions ───────────────────────────────────────────────────────────
 
     @Override
     @Transactional
@@ -142,8 +177,24 @@ public class OrderServiceImpl implements OrderService {
                     "Invalid order status transition: " + currentStatus + " -> " + status);
         }
 
+        if (status == CustomerOrder.OrderStatus.COMPLETED) {
+            Payment payment = order.getPayment();
+            Shipping shipping = order.getShipping();
+            if (payment == null || payment.getStatus() != Payment.PaymentStatus.PAID) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Cannot complete order: Payment must be PAID.");
+            }
+            if (shipping == null || shipping.getStatus() != Shipping.ShippingStatus.DELIVERED) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Cannot complete order: Shipping must be DELIVERED.");
+            }
+        }
+
         attachCustomerFromPaymentIfMissing(order);
         order.setStatus(status);
+        if (status == CustomerOrder.OrderStatus.CANCELLED) {
+            restoreCouponUsage(order);
+        }
         customerOrderRepository.save(order);
     }
 
@@ -189,6 +240,8 @@ public class OrderServiceImpl implements OrderService {
         paymentRepository.save(payment);
     }
 
+    // ─── Options ─────────────────────────────────────────────────────────────────
+
     @Override
     public List<UserDTO> getCustomerOptions() {
         return userRepository.findByRoleOrderByNameAsc(User.Role.USER).stream()
@@ -199,10 +252,12 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public List<ShipperDTO> getShipperOptions() {
         return shipperRepository.findAll().stream()
-                .sorted((left, right) -> left.getName().compareToIgnoreCase(right.getName()))
-                .map(shipper -> new ShipperDTO(shipper.getId(), shipper.getName(), shipper.getPhone()))
+                .sorted((a, b) -> a.getName().compareToIgnoreCase(b.getName()))
+                .map(s -> new ShipperDTO(s.getId(), s.getName(), s.getPhone()))
                 .toList();
     }
+
+    // ─── Private utilities ────────────────────────────────────────────────────────
 
     private Pageable buildPageable(int page, int size) {
         return PageRequest.of(Math.max(page, 0), Math.max(size, 1), Sort.by(Sort.Direction.DESC, "id"));
@@ -210,7 +265,7 @@ public class OrderServiceImpl implements OrderService {
 
     private Page<CustomerOrder> findAdminByExactOrderId(String orderId, CustomerOrder.OrderStatus status,
             Pageable pageable) {
-        Long parsedId = parseOrderId(orderId, pageable);
+        Long parsedId = parseOrderId(orderId);
         if (parsedId == null) {
             return new PageImpl<>(Collections.emptyList(), pageable, 0);
         }
@@ -232,7 +287,7 @@ public class OrderServiceImpl implements OrderService {
         return new PageImpl<>(List.of(order), pageable, 1);
     }
 
-    private Long parseOrderId(String orderId, Pageable pageable) {
+    private Long parseOrderId(String orderId) {
         try {
             return Long.valueOf(orderId);
         } catch (NumberFormatException ex) {
@@ -258,7 +313,14 @@ public class OrderServiceImpl implements OrderService {
         dto.setStatusCssClass(toStatusCssClass(order.getStatus()));
         dto.setCreatedAtDisplay(formatDateTime(order.getCreatedAt()));
         dto.setItemCount(order.getItems().stream().mapToInt(OrderItem::getQuantity).sum());
+
+        BigDecimal subtotal = resolveSubtotal(order);
+        BigDecimal discountAmount = order.getDiscountAmount() == null ? BigDecimal.ZERO : order.getDiscountAmount();
+        dto.setSubtotalAmountDisplay(formatAmount(subtotal));
+        dto.setDiscountAmountDisplay(formatAmount(discountAmount));
         dto.setTotalAmountDisplay(formatAmount(resolveAmount(order, payment)));
+        dto.setCouponCode(order.getCoupon() != null ? order.getCoupon().getCode() : NOT_AVAILABLE);
+
         dto.setCustomerName(customer != null && customer.getName() != null ? customer.getName() : NOT_AVAILABLE);
         dto.setShippingMethod(
                 shipping != null && shipping.getMethod() != null ? shipping.getMethod().name() : NOT_AVAILABLE);
@@ -269,6 +331,7 @@ public class OrderServiceImpl implements OrderService {
         dto.setShipperName(shipping != null && shipping.getShipper() != null && shipping.getShipper().getName() != null
                 ? shipping.getShipper().getName()
                 : NOT_AVAILABLE);
+
         dto.setCanCancel(order.getStatus() == CustomerOrder.OrderStatus.PENDING);
         dto.setCanConfirm(order.getStatus() == CustomerOrder.OrderStatus.PENDING);
         dto.setCanComplete(order.getStatus() == CustomerOrder.OrderStatus.CONFIRMED);
@@ -282,6 +345,11 @@ public class OrderServiceImpl implements OrderService {
         if (payment != null && payment.getAmount() != null) {
             return payment.getAmount();
         }
+        BigDecimal discount = order.getDiscountAmount() == null ? BigDecimal.ZERO : order.getDiscountAmount();
+        return resolveSubtotal(order).subtract(discount);
+    }
+
+    private BigDecimal resolveSubtotal(CustomerOrder order) {
         return order.getItems().stream()
                 .filter(item -> item.getBook() != null && item.getBook().getPrice() != null)
                 .map(item -> item.getBook().getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
@@ -289,7 +357,6 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private OrderItemDTO toItemDto(OrderItem item) {
-
         String title = item.getBook() != null && item.getBook().getTitle() != null
                 ? item.getBook().getTitle()
                 : "Untitled book";
@@ -300,9 +367,7 @@ public class OrderServiceImpl implements OrderService {
         dto.setBookTitle(title);
 
         if (item.getBook() != null) {
-
             var book = item.getBook();
-
             dto.setBook(
                     BookDTO.builder()
                             .id(book.getId())
@@ -392,16 +457,15 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
-    private boolean isAllowedTransition(CustomerOrder.OrderStatus currentStatus,
-            CustomerOrder.OrderStatus targetStatus) {
-        if (currentStatus == null || targetStatus == null || currentStatus == targetStatus) {
+    private boolean isAllowedTransition(CustomerOrder.OrderStatus current, CustomerOrder.OrderStatus target) {
+        if (current == null || target == null || current == target) {
             return false;
         }
-        return switch (currentStatus) {
-            case PENDING -> targetStatus == CustomerOrder.OrderStatus.CONFIRMED
-                    || targetStatus == CustomerOrder.OrderStatus.CANCELLED;
-            case CONFIRMED -> targetStatus == CustomerOrder.OrderStatus.COMPLETED
-                    || targetStatus == CustomerOrder.OrderStatus.CANCELLED;
+        return switch (current) {
+            case PENDING -> target == CustomerOrder.OrderStatus.CONFIRMED
+                    || target == CustomerOrder.OrderStatus.CANCELLED;
+            case CONFIRMED -> target == CustomerOrder.OrderStatus.COMPLETED
+                    || target == CustomerOrder.OrderStatus.CANCELLED;
             case COMPLETED, CANCELLED -> false;
         };
     }
@@ -443,10 +507,10 @@ public class OrderServiceImpl implements OrderService {
         if (amount == null) {
             return NOT_AVAILABLE;
         }
-        NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.forLanguageTag("vi-VN"));
-        numberFormat.setMinimumFractionDigits(0);
-        numberFormat.setMaximumFractionDigits(2);
-        return numberFormat.format(amount) + " VND";
+        NumberFormat fmt = NumberFormat.getNumberInstance(Locale.forLanguageTag("vi-VN"));
+        fmt.setMinimumFractionDigits(0);
+        fmt.setMaximumFractionDigits(2);
+        return fmt.format(amount) + " VND";
     }
 
     private String toStatusCssClass(CustomerOrder.OrderStatus status) {

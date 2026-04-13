@@ -18,8 +18,14 @@ public class CouponDTO {
     private String code;
     private Coupon.CouponType type;
     private BigDecimal value;
+    private boolean active;
     private int maxUsePerUser;
+    private Integer totalUsageLimit;
+    private BigDecimal minOrderValue;
+    private BigDecimal maxDiscountValue;
     private LocalDateTime startAt;
     private LocalDateTime endAt;
+    private Long currentUsageCount;
+    private List<Long> applicableBookIds;
     private List<BookDTO> applicableBooks;
 }
