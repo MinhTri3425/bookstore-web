@@ -11,6 +11,7 @@ import lombok.Setter;
 @NoArgsConstructor
 public class ShipperDTO {
     private Long id;
+    private String email;
     private String name;
     private String phone;
 

@@ -3,6 +3,7 @@ package com.example.book_webstore.controller;
 import com.example.book_webstore.dto.CartDTO;
 import com.example.book_webstore.dto.CartItemDTO;
 import com.example.book_webstore.dto.CustomerOrderDTO;
+import com.example.book_webstore.dto.CouponValidationDTO;
 import com.example.book_webstore.model.Payment;
 import com.example.book_webstore.model.User;
 import com.example.book_webstore.repository.UserRepository;
@@ -10,6 +11,7 @@ import com.example.book_webstore.service.CartService;
 import com.example.book_webstore.service.OrderService;
 import com.example.book_webstore.service.payment.strategy.PaymentStrategyResolver;
 import com.example.book_webstore.service.payment.vnpay.VnPayService;
+import com.example.book_webstore.service.CouponService;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.Authentication;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import java.security.Principal;
 
 import java.math.BigDecimal;
 import java.util.HashSet;
@@ -30,20 +33,24 @@ import java.util.Set;
 @Controller
 public class CartController {
     private static final String CART_SESSION_KEY = "CART_ID";
+    private static final String APPLIED_COUPON_CODE_SESSION_KEY = "APPLIED_COUPON_CODE";
     private final CartService cartService;
     private final OrderService orderService;
     private final UserRepository userRepository;
+    private final CouponService couponService;
     private final PaymentStrategyResolver paymentStrategyResolver;
     private final VnPayService vnPayService;
 
     public CartController(CartService cartService,
-                          OrderService orderService,
-                          UserRepository userRepository,
-                          PaymentStrategyResolver paymentStrategyResolver,
-                          VnPayService vnPayService) {
+            OrderService orderService,
+            UserRepository userRepository,
+            CouponService couponService,
+            PaymentStrategyResolver paymentStrategyResolver,
+            VnPayService vnPayService) {
         this.cartService = cartService;
         this.orderService = orderService;
         this.userRepository = userRepository;
+        this.couponService = couponService;
         this.paymentStrategyResolver = paymentStrategyResolver;
         this.vnPayService = vnPayService;
     }
@@ -53,15 +60,19 @@ public class CartController {
     public String cartPage(Model model,
             HttpSession session,
             Authentication authentication,
+            Principal principal,
             @RequestParam(value = "message", required = false) String message) {
 
         Long cartId = (Long) session.getAttribute(CART_SESSION_KEY);
         CartDTO cart = cartService.getOrCreateCart(cartId);
         session.setAttribute(CART_SESSION_KEY, cart.getId());
+        CouponValidationDTO couponResult = resolveCouponForCart(session, cart.getId(), principal);
 
         model.addAttribute("cart", cart);
         model.addAttribute("cartItemCount", cartService.getItemCount(cart.getId()));
         model.addAttribute("cartTotal", calculateCartTotal(cart));
+        model.addAttribute("couponResult", couponResult);
+        model.addAttribute("appliedCouponCode", session.getAttribute(APPLIED_COUPON_CODE_SESSION_KEY));
         model.addAttribute("message", message);
         model.addAttribute("paymentMethods", Payment.PaymentMethod.values());
 
@@ -162,7 +173,8 @@ public class CartController {
     }
 
     @PostMapping("/checkout/address/add")
-    public String addCheckoutAddress(@RequestParam(value = "selectedBookIds", required = false) List<Long> selectedBookIds,
+    public String addCheckoutAddress(
+            @RequestParam(value = "selectedBookIds", required = false) List<Long> selectedBookIds,
             @RequestParam("street") String street,
             @RequestParam("ward") String ward,
             @RequestParam("district") String district,
@@ -199,7 +211,8 @@ public class CartController {
         Long selectedAddressId = null;
         String message;
         try {
-            selectedAddressId = cartService.addUserAddress(authentication.getName(), street, ward, district, city).getId();
+            selectedAddressId = cartService.addUserAddress(authentication.getName(), street, ward, district, city)
+                    .getId();
             message = "Đã thêm địa chỉ mới thành công";
         } catch (IllegalArgumentException ex) {
             message = ex.getMessage();
@@ -210,7 +223,8 @@ public class CartController {
     }
 
     @PostMapping("/checkout/place")
-    public String checkoutSelectedItems(@RequestParam(value = "selectedBookIds", required = false) List<Long> selectedBookIds,
+    public String checkoutSelectedItems(
+            @RequestParam(value = "selectedBookIds", required = false) List<Long> selectedBookIds,
             @RequestParam(value = "selectedAddressId", required = false) Long selectedAddressId,
             @RequestParam("receiverName") String receiverName,
             @RequestParam("phoneNumber") String phoneNumber,
@@ -266,7 +280,8 @@ public class CartController {
                 return "redirect:" + paymentUrl;
             } catch (Exception ex) {
                 redirectAttributes.addFlashAttribute("message",
-                        "Don hang #" + orderId + " da tao, nhung khong khoi tao duoc cong thanh toan VNPAY: " + ex.getMessage());
+                        "Don hang #" + orderId + " da tao, nhung khong khoi tao duoc cong thanh toan VNPAY: "
+                                + ex.getMessage());
                 return "redirect:/cart";
             }
         }
@@ -276,11 +291,12 @@ public class CartController {
 
     @GetMapping("/checkout/success")
     public String checkoutSuccess(@RequestParam("orderId") Long orderId,
-                                  Model model) {
+            Model model) {
         attachPaymentOrder(model, orderId);
         model.addAttribute("paymentSuccess", true);
         model.addAttribute("paymentTitle", "Đặt hàng thành công");
-        model.addAttribute("paymentMessage", "Đơn hàng #" + orderId + " đã được ghi nhận. Bạn sẽ thanh toán khi nhận hàng.");
+        model.addAttribute("paymentMessage",
+                "Đơn hàng #" + orderId + " đã được ghi nhận. Bạn sẽ thanh toán khi nhận hàng.");
         model.addAttribute("orderId", orderId);
         model.addAttribute("responseCode", "");
         model.addAttribute("transactionNo", "");
@@ -289,7 +305,7 @@ public class CartController {
 
     @GetMapping("/payment/vnpay-return")
     public String vnPayReturn(@RequestParam Map<String, String> queryParams,
-                      Model model) {
+            Model model) {
         boolean validSignature = paymentStrategyResolver
                 .resolve(Payment.PaymentMethod.VNPAY)
                 .validateCallbackSignature(queryParams);
@@ -370,12 +386,12 @@ public class CartController {
     }
 
     private String renderCheckoutPage(Model model,
-                                      String customerEmail,
-                                      List<CartItemDTO> selectedItems,
-                                      List<Long> selectedBookIds,
-                                      BigDecimal selectedTotal,
-                                      Long selectedAddressId,
-                                      String message) {
+            String customerEmail,
+            List<CartItemDTO> selectedItems,
+            List<Long> selectedBookIds,
+            BigDecimal selectedTotal,
+            Long selectedAddressId,
+            String message) {
         User user = userRepository.findByEmail(customerEmail);
 
         model.addAttribute("selectedItems", selectedItems);
@@ -398,7 +414,6 @@ public class CartController {
         return request.getRemoteAddr();
     }
 
-
     private BigDecimal calculateCartTotal(CartDTO cart) {
         if (cart == null || cart.getItems() == null) {
             return BigDecimal.ZERO;
@@ -413,4 +428,27 @@ public class CartController {
         }
         return total;
     }
+
+    private CouponValidationDTO resolveCouponForCart(HttpSession session, Long cartId, Principal principal) {
+        Object couponCode = session.getAttribute(APPLIED_COUPON_CODE_SESSION_KEY);
+        if (couponCode == null || cartId == null || principal == null) {
+            return null;
+        }
+
+        try {
+            return couponService.validateCouponForCart(String.valueOf(couponCode), cartId, principal.getName());
+        } catch (Exception e) {
+            session.removeAttribute(APPLIED_COUPON_CODE_SESSION_KEY);
+            return null;
+        }
+    }
+
+    // private String extractErrorMessage(Exception e) {
+    // if (e instanceof org.springframework.web.server.ResponseStatusException
+    // responseStatusException
+    // && responseStatusException.getReason() != null) {
+    // return responseStatusException.getReason();
+    // }
+    // return e.getMessage() == null ? "Không thể áp dụng coupon." : e.getMessage();
+    // }
 }

@@ -33,6 +33,8 @@ public class User {
     private String password;
     private String name;
     private String phoneNumber;
+    @Column(columnDefinition = "boolean default false")
+    private boolean isShipper = false;
 
     public static enum Role {
         ADMIN, USER
