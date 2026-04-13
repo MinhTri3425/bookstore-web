@@ -123,6 +123,7 @@
                             <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
                             
                             <input type="hidden" name="bookId" value="${book.id}">
+                            <input type="hidden" name="redirectTo" value="/books/${book.id}${not empty pageContext.request.queryString ? '?'.concat(pageContext.request.queryString) : ''}">
 
                             <div class="d-flex gap-3">
                                 <div class="input-group" style="width: 130px;">

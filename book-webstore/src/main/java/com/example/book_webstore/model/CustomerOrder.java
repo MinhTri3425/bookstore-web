@@ -41,4 +41,8 @@ public class CustomerOrder {
 
     @OneToOne(mappedBy = "order", fetch = FetchType.LAZY)
     private Shipping shipping;
+    private String receiverName;
+    private String address;
+    private String phoneNumber;
+    private String note;
 }

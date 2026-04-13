@@ -287,12 +287,15 @@ public class OrderServiceImpl implements OrderService {
                 .map(item -> item.getBook().getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
+    //lấy tên sách khi tạo order item để tránh lỗi khi sau này sách bị xóa hoặc thông tin sách bị thay đổi
 
     private OrderItemDTO toItemDto(OrderItem item) {
 
-        String title = item.getBook() != null && item.getBook().getTitle() != null
-                ? item.getBook().getTitle()
-                : "Untitled book";
+        String title = item.getBookTitle() != null && !item.getBookTitle().isBlank()
+            ? item.getBookTitle()
+            : (item.getBook() != null && item.getBook().getTitle() != null
+            ? item.getBook().getTitle()
+            : "Untitled book");
 
         OrderItemDTO dto = new OrderItemDTO();
         dto.setId(item.getId());

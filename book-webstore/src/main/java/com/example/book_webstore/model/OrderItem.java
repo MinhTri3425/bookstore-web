@@ -27,5 +27,6 @@ public class OrderItem {
     @JoinColumn(name = "book_id")
     @ToString.Exclude
     private Book book;
+    private String BookTitle;
 
 }

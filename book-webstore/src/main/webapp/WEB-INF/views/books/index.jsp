@@ -162,6 +162,7 @@
                                     <form action="${pageContext.request.contextPath}/cart/add" method="post">
                                         <input type="hidden" name="bookId" value="${book.id}">
                                         <input type="hidden" name="quantity" value="1">
+                                        <input type="hidden" name="redirectTo" value="/books${not empty pageContext.request.queryString ? '?'.concat(pageContext.request.queryString) : ''}">
                                         <button type="submit" class="btn btn-primary btn-sm w-100 shadow-sm" ${book.stock == 0 ? 'disabled' : ''}>
                                             <i class="fas fa-cart-plus me-1"></i>
                                             ${book.stock == 0 ? 'Hết hàng' : 'Thêm vào giỏ'}

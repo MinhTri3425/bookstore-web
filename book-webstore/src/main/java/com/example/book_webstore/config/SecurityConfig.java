@@ -41,6 +41,7 @@ public class SecurityConfig {
                                 "/images/**",
                                 "/uploads/**", // <--- PHẢI CÓ DÒNG NÀY ẢNH MỚI HIỆN
                                 "/books/**", // Cho phép xem chi tiết sách không cần login
+                                "/payment/vnpay-return",
                                 "/home")
                         .permitAll()
 
