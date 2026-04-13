@@ -2,6 +2,7 @@
 <%@ page import="com.example.book_webstore.dto.CartDTO" %>
 <%@ page import="com.example.book_webstore.dto.CartItemDTO" %>
 <%@ page import="com.example.book_webstore.dto.BookImageDTO" %>
+<%@ page import="com.example.book_webstore.dto.CouponValidationDTO" %>
 <%@ page import="java.math.BigDecimal" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <!DOCTYPE html>
@@ -19,6 +20,8 @@
     Object countObj = request.getAttribute("cartItemCount");
     long cartItemCount = countObj == null ? 0L : Long.parseLong(String.valueOf(countObj));
     BigDecimal cartTotal = (BigDecimal) request.getAttribute("cartTotal");
+    CouponValidationDTO couponResult = (CouponValidationDTO) request.getAttribute("couponResult");
+    String appliedCouponCode = (String) request.getAttribute("appliedCouponCode");
     String message = (String) request.getAttribute("message");
 %>
 <div class="container mt-5">
@@ -45,6 +48,38 @@
     <section class="card shadow-sm p-4">
         <div class="mb-3 border-bottom pb-2 text-end">
             <h4 class="text-danger">Tổng tiền: <%= cartTotal == null ? "0" : cartTotal %> VND</h4>
+        </div>
+
+        <div class="coupon-panel mb-4">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-8">
+                    <form method="post" action="${pageContext.request.contextPath}/cart/apply-coupon" class="coupon-form">
+                        <label for="couponCode" class="form-label fw-semibold">Mã giảm giá</label>
+                        <div class="input-group">
+                            <input id="couponCode" type="text" name="code" class="form-control" placeholder="Nhập coupon của bạn" value="<%= appliedCouponCode == null ? "" : appliedCouponCode %>">
+                            <button type="submit" class="btn btn-primary">Áp dụng</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="col-md-4">
+                    <form method="post" action="${pageContext.request.contextPath}/cart/remove-coupon" class="d-grid">
+                        <button type="submit" class="btn btn-outline-secondary" <%= appliedCouponCode == null ? "disabled" : "" %>>
+                            Gỡ coupon
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <% if (couponResult != null) { %>
+                <div class="coupon-result mt-3">
+                    <div class="coupon-badge">Đã áp dụng: <strong><%= couponResult.getCode() %></strong></div>
+                    <div class="coupon-meta">
+                        <span>Tạm tính: <strong><%= couponResult.getSubtotal() %> VND</strong></span>
+                        <span>Giảm giá: <strong>-<%= couponResult.getDiscountAmount() %> VND</strong></span>
+                        <span>Thanh toán: <strong><%= couponResult.getFinalTotal() %> VND</strong></span>
+                    </div>
+                </div>
+            <% } %>
         </div>
 
         <% if (cart == null || cart.getItems() == null || cart.getItems().isEmpty()) { %>
@@ -96,6 +131,24 @@
         <%      }
            }
         %>
+
+        <% if (cart != null && cart.getItems() != null && !cart.getItems().isEmpty()) { %>
+            <div class="checkout-summary mt-4">
+                <h5 class="mb-3">Tóm tắt thanh toán</h5>
+                <div class="summary-line">
+                    <span>Tạm tính</span>
+                    <strong><%= cartTotal == null ? "0" : cartTotal %> VND</strong>
+                </div>
+                <div class="summary-line">
+                    <span>Giảm giá coupon</span>
+                    <strong><%= couponResult == null ? "0" : couponResult.getDiscountAmount() %> VND</strong>
+                </div>
+                <div class="summary-line total">
+                    <span>Tổng cần thanh toán</span>
+                    <strong><%= couponResult == null ? (cartTotal == null ? "0" : cartTotal) : couponResult.getFinalTotal() %> VND</strong>
+                </div>
+            </div>
+        <% } %>
     </section>
 </div>
 <jsp:include page="/WEB-INF/views/fragments/footer.jsp" />

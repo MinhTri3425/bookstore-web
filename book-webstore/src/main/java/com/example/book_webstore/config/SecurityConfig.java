@@ -34,12 +34,26 @@ public class SecurityConfig {
                 .authenticationProvider(authenticationProvider())
                 .authorizeHttpRequests(authz -> authz
                         .dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR).permitAll()
-                        .requestMatchers("/", "/login", "/error", "/home", "/css/**", "/js/**", "/images/**",
-                                "/uploads/**", "/books/**")
+
+                        // QUAN TRỌNG: Cho phép truy cập tài nguyên tĩnh và THƯ MỤC UPLOADS (ảnh sách)
+                        .requestMatchers(
+                                "/",
+                                "/register",
+                                "/login",
+                                "/error",
+                                "/mock-login",
+                                "/css/**",
+                                "/js/**",
+                                "/images/**",
+                                "/uploads/**", // <--- PHẢI CÓ DÒNG NÀY ẢNH MỚI HIỆN
+                                "/books/**", // Cho phép xem chi tiết sách không cần login
+                                "/home")
                         .permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/shipper/**").hasAnyRole("ADMIN", "USER")
                         .requestMatchers("/cart/**", "/order/**", "/my-orders/**").authenticated()
+                        .requestMatchers("/profile/**").authenticated()
+                        // Tất cả các request khác phải đăng nhập
                         .anyRequest().authenticated())
 
                 .formLogin(form -> form

@@ -33,7 +33,8 @@ public class User {
     private String password;
     private String name;
     private String phoneNumber;
-
+    @Column(columnDefinition = "boolean default false")
+    private boolean isShipper = false;
     public static enum Role {
         ADMIN, USER
     }
@@ -48,4 +49,5 @@ public class User {
     private List<CustomerOrder> orders = new ArrayList<>();
     private boolean isShipper = false;
 
+    
 }

@@ -1,5 +1,7 @@
 package com.example.book_webstore.controller;
 
+import java.security.Principal;
+
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -10,6 +12,8 @@ import com.example.book_webstore.dto.CustomerOrderDTO;
 import com.example.book_webstore.model.CustomerOrder;
 import com.example.book_webstore.model.Payment;
 import com.example.book_webstore.model.Shipping;
+import com.example.book_webstore.model.User;
+import com.example.book_webstore.repository.UserRepository;
 import com.example.book_webstore.service.OrderService;
 import com.example.book_webstore.service.ShippingService;
 import com.example.book_webstore.service.ShipperService;
@@ -21,29 +25,43 @@ public class OrderController {
     private final OrderService orderService;
     private final ShippingService shippingService;
     private final ShipperService shipperService;
+    private final UserRepository userRepository;
 
-    // Inject đầy đủ các service liên quan
-    public OrderController(OrderService orderService,
+    public OrderController(
+            OrderService orderService,
             ShippingService shippingService,
-            ShipperService shipperService) {
+            ShipperService shipperService,
+            UserRepository userRepository) {
         this.orderService = orderService;
         this.shippingService = shippingService;
         this.shipperService = shipperService;
+        this.userRepository = userRepository;
     }
 
-    @GetMapping({ "/order", "/admin/orders" })
+    // 🔥 GIỮ LOGIC ROLE (develop)
+    @GetMapping("/order")
+    public String orderHub(Principal principal) {
+        User currentUser = requireCurrentUser(principal);
+        return currentUser.getRole() == User.Role.ADMIN
+                ? "redirect:/admin/orders"
+                : "redirect:/my-orders";
+    }
+
+    @GetMapping("/admin/orders")
     public String adminList(
             @RequestParam(required = false) String orderId,
             @RequestParam(required = false) CustomerOrder.OrderStatus status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             Model model) {
+
         Page<CustomerOrderDTO> orderPage = orderService.getAdminOrderPage(orderId, status, page, size);
         populateAdminListModel(model, orderPage, orderId, status);
-        return "order/show";
+        return "admin/orders";
     }
 
-    @GetMapping({ "/order/{id}", "/admin/orders/{id}" })
+    // 🔥 GIỮ VERSION develop (URL rõ ràng)
+    @GetMapping("/admin/orders/{id}")
     public String adminDetail(@PathVariable Long id, Model model) {
         CustomerOrderDTO order = orderService.getAdminOrderDetail(id);
 
@@ -52,15 +70,14 @@ public class OrderController {
         model.addAttribute("viewMode", "admin");
         model.addAttribute("backPath", "/admin/orders");
 
-        // Load các tùy chọn cho dropdown
         model.addAttribute("orderStatusOptions", CustomerOrder.OrderStatus.values());
         model.addAttribute("paymentStatusOptions", Payment.PaymentStatus.values());
         model.addAttribute("shippingStatusOptions", Shipping.ShippingStatus.values());
 
-        // LẤY TỪ SHIPPER SERVICE thay vì OrderService
+        // 🔥 GIỮ SHIPPER từ Shipping branch
         model.addAttribute("shipperOptions", shipperService.getAllShippers());
 
-        return "order/detail";
+        return "admin/order-detail";
     }
 
     @PostMapping("/admin/orders/{id}/status")
@@ -68,8 +85,12 @@ public class OrderController {
             @PathVariable Long id,
             @RequestParam CustomerOrder.OrderStatus status,
             RedirectAttributes redirectAttributes) {
-        orderService.updateOrderStatus(id, status);
-        redirectAttributes.addFlashAttribute("successMessage", "Order status updated.");
+        try {
+            orderService.updateOrderStatus(id, status);
+            redirectAttributes.addFlashAttribute("successMessage", "Đã cập nhật trạng thái đơn hàng.");
+        } catch (org.springframework.web.server.ResponseStatusException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", e.getReason());
+        }
         return "redirect:/admin/orders/" + id;
     }
 
@@ -78,11 +99,16 @@ public class OrderController {
             @PathVariable Long id,
             @RequestParam Payment.PaymentStatus status,
             RedirectAttributes redirectAttributes) {
-        orderService.updatePayment(id, status);
-        redirectAttributes.addFlashAttribute("successMessage", "Payment status updated.");
+        try {
+            orderService.updatePayment(id, status);
+            redirectAttributes.addFlashAttribute("successMessage", "Đã cập nhật thanh toán.");
+        } catch (org.springframework.web.server.ResponseStatusException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", e.getReason());
+        }
         return "redirect:/admin/orders/" + id;
     }
 
+    // 🔥 MERGE LOGIC SHIPPING (ưu tiên service riêng)
     @PostMapping("/admin/orders/{id}/shipping")
     public String updateShipping(
             @PathVariable Long id,
@@ -90,58 +116,71 @@ public class OrderController {
             @RequestParam(required = false) Long shipperId,
             RedirectAttributes redirectAttributes) {
 
-        // GỌI TRỰC TIẾP SHIPPING SERVICE để xử lý logic vận chuyển
-        shippingService.updateStatus(id, status);
+        try {
+            shippingService.updateStatus(id, status);
 
-        // Nếu có shipperId từ admin truyền xuống (chọn tay), thực hiện gán thủ công
-        if (shipperId != null) {
-            shippingService.assignShipperManual(id, shipperId);
+            if (shipperId != null) {
+                shippingService.assignShipperManual(id, shipperId);
+            }
+
+            redirectAttributes.addFlashAttribute("successMessage", "Đã cập nhật thông tin giao hàng.");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
         }
 
-        redirectAttributes.addFlashAttribute("successMessage", "Shipping information updated.");
         return "redirect:/admin/orders/" + id;
     }
 
     @GetMapping("/my-orders")
     public String customerList(
-            @RequestParam(required = false) Long customerId,
             @RequestParam(required = false) CustomerOrder.OrderStatus status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
+            Principal principal,
             Model model) {
+
+        Long customerId = requireCurrentUser(principal).getId();
         Page<CustomerOrderDTO> orderPage = orderService.getCustomerOrderPage(customerId, status, page, size);
-        populateCustomerListModel(model, orderPage, customerId, status);
-        return "order/show";
+        populateCustomerListModel(model, orderPage, status);
+        return "user/orders";
     }
 
     @GetMapping("/my-orders/{id}")
     public String customerDetail(
             @PathVariable Long id,
-            @RequestParam Long customerId,
+            Principal principal,
             Model model) {
+
+        Long customerId = requireCurrentUser(principal).getId();
         CustomerOrderDTO order = orderService.getCustomerOrderDetail(customerId, id);
+
         model.addAttribute("pageTitle", "My Order #" + order.getId());
         model.addAttribute("order", order);
         model.addAttribute("viewMode", "customer");
-        model.addAttribute("selectedCustomerId", customerId);
         model.addAttribute("backPath", "/my-orders");
-        return "order/detail";
+
+        return "user/order-detail";
     }
 
     @PostMapping("/my-orders/{id}/cancel")
     public String cancelCustomerOrder(
             @PathVariable Long id,
-            @RequestParam Long customerId,
+            Principal principal,
             RedirectAttributes redirectAttributes) {
+
+        Long customerId = requireCurrentUser(principal).getId();
         orderService.cancelCustomerOrder(customerId, id);
+
         redirectAttributes.addFlashAttribute("successMessage", "Order cancelled.");
-        return "redirect:/my-orders/" + id + "?customerId=" + customerId;
+        return "redirect:/my-orders/" + id;
     }
 
-    // --- Helper Methods ---
-
-    private void populateAdminListModel(Model model, Page<CustomerOrderDTO> orderPage, String orderId,
+    private void populateAdminListModel(
+            Model model,
+            Page<CustomerOrderDTO> orderPage,
+            String orderId,
             CustomerOrder.OrderStatus status) {
+
         model.addAttribute("pageTitle", "Admin Orders");
         model.addAttribute("pageHeading", "Order Management");
         model.addAttribute("orders", orderPage.getContent());
@@ -155,9 +194,13 @@ public class OrderController {
         model.addAttribute("detailBasePath", "/admin/orders");
     }
 
-    private void populateCustomerListModel(Model model, Page<CustomerOrderDTO> orderPage, Long customerId,
+    private void populateCustomerListModel(
+            Model model,
+            Page<CustomerOrderDTO> orderPage,
             CustomerOrder.OrderStatus status) {
+
         model.addAttribute("pageTitle", "My Orders");
+        model.addAttribute("pageHeading", "My Orders");
         model.addAttribute("orders", orderPage.getContent());
         model.addAttribute("currentPage", orderPage.getNumber());
         model.addAttribute("totalPages", orderPage.getTotalPages());
@@ -166,7 +209,16 @@ public class OrderController {
         model.addAttribute("viewMode", "customer");
         model.addAttribute("listPath", "/my-orders");
         model.addAttribute("detailBasePath", "/my-orders");
-        model.addAttribute("selectedCustomerId", customerId);
-        model.addAttribute("customerOptions", orderService.getCustomerOptions());
+    }
+
+    private User requireCurrentUser(Principal principal) {
+        if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
+            throw new IllegalStateException("Authenticated user is required");
+        }
+        User user = userRepository.findByEmail(principal.getName());
+        if (user == null) {
+            throw new IllegalStateException("Authenticated user not found");
+        }
+        return user;
     }
 }
