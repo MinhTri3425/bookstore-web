@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -23,21 +24,18 @@ import com.example.book_webstore.dto.BookDTO;
 import com.example.book_webstore.dto.CustomerOrderDTO;
 import com.example.book_webstore.dto.OrderItemDTO;
 import com.example.book_webstore.dto.PaymentDTO;
-import com.example.book_webstore.dto.ShipperDTO;
 import com.example.book_webstore.dto.ShippingDTO;
 import com.example.book_webstore.dto.UserDTO;
 import com.example.book_webstore.model.CustomerOrder;
 import com.example.book_webstore.model.OrderItem;
 import com.example.book_webstore.model.Payment;
-import com.example.book_webstore.model.Shipper;
 import com.example.book_webstore.model.Shipping;
 import com.example.book_webstore.model.User;
 import com.example.book_webstore.repository.CustomerOrderRepository;
 import com.example.book_webstore.repository.PaymentRepository;
-import com.example.book_webstore.repository.ShipperRepository;
-import com.example.book_webstore.repository.ShippingRepository;
 import com.example.book_webstore.repository.UserRepository;
 import com.example.book_webstore.service.OrderService;
+import com.example.book_webstore.service.ShippingService;
 
 @Service
 @Transactional(readOnly = true)
@@ -48,21 +46,18 @@ public class OrderServiceImpl implements OrderService {
 
     private final CustomerOrderRepository customerOrderRepository;
     private final PaymentRepository paymentRepository;
-    private final ShippingRepository shippingRepository;
     private final UserRepository userRepository;
-    private final ShipperRepository shipperRepository;
+    private final ShippingService shippingService;
 
     public OrderServiceImpl(
             CustomerOrderRepository customerOrderRepository,
             PaymentRepository paymentRepository,
-            ShippingRepository shippingRepository,
             UserRepository userRepository,
-            ShipperRepository shipperRepository) {
+            ShippingService shippingService) {
         this.customerOrderRepository = customerOrderRepository;
         this.paymentRepository = paymentRepository;
-        this.shippingRepository = shippingRepository;
         this.userRepository = userRepository;
-        this.shipperRepository = shipperRepository;
+        this.shippingService = shippingService;
     }
 
     @Override
@@ -118,11 +113,15 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
 
         if (order.getStatus() != CustomerOrder.OrderStatus.PENDING) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only pending orders can be cancelled");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ đơn hàng đang chờ duyệt mới có thể hủy");
         }
 
         attachCustomerFromPaymentIfMissing(order);
         order.setStatus(CustomerOrder.OrderStatus.CANCELLED);
+
+        // THÔNG BÁO HỦY: Giải phóng Shipper nếu lỡ có người đã nhận đơn này
+        shippingService.handleOrderCancelled(id);
+
         customerOrderRepository.save(order);
     }
 
@@ -136,41 +135,22 @@ public class OrderServiceImpl implements OrderService {
         CustomerOrder order = customerOrderRepository.findDetailById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
 
-        CustomerOrder.OrderStatus currentStatus = order.getStatus();
-        if (!isAllowedTransition(currentStatus, status)) {
+        if (!isAllowedTransition(order.getStatus(), status)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Invalid order status transition: " + currentStatus + " -> " + status);
+                    "Invalid order status transition: " + order.getStatus() + " -> " + status);
         }
+
+        // --- XỬ LÝ HỦY ĐƠN TỪ ADMIN ---
+        if (status == CustomerOrder.OrderStatus.CANCELLED) {
+            shippingService.handleOrderCancelled(id);
+        }
+
+        // ĐÃ XÓA createAutoShipping TẠI ĐÂY
+        // Đơn hàng CONFIRMED sẽ đợi Shipper chủ động vào nhận qua acceptOrder()
 
         attachCustomerFromPaymentIfMissing(order);
         order.setStatus(status);
         customerOrderRepository.save(order);
-    }
-
-    @Override
-    @Transactional
-    public void updateShipping(Long id, Shipping.ShippingStatus status, Long shipperId) {
-        if (status == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Shipping status is required");
-        }
-
-        CustomerOrder order = customerOrderRepository.findDetailById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
-
-        Shipping shipping = ensureShipping(order);
-        if (order.getStatus() == CustomerOrder.OrderStatus.PENDING && status != Shipping.ShippingStatus.PENDING) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Pending orders cannot move to active shipping states");
-        }
-
-        shipping.setStatus(status);
-        if (shipperId != null) {
-            Shipper shipper = shipperRepository.findById(shipperId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Shipper not found"));
-            shipping.setShipper(shipper);
-        }
-
-        shippingRepository.save(shipping);
     }
 
     @Override
@@ -196,13 +176,7 @@ public class OrderServiceImpl implements OrderService {
                 .toList();
     }
 
-    @Override
-    public List<ShipperDTO> getShipperOptions() {
-        return shipperRepository.findAll().stream()
-                .sorted((left, right) -> left.getName().compareToIgnoreCase(right.getName()))
-                .map(shipper -> new ShipperDTO(shipper.getId(), shipper.getName(), shipper.getPhone()))
-                .toList();
-    }
+    // --- Private Helper Methods ---
 
     private Pageable buildPageable(int page, int size) {
         return PageRequest.of(Math.max(page, 0), Math.max(size, 1), Sort.by(Sort.Direction.DESC, "id"));
@@ -210,34 +184,20 @@ public class OrderServiceImpl implements OrderService {
 
     private Page<CustomerOrder> findAdminByExactOrderId(String orderId, CustomerOrder.OrderStatus status,
             Pageable pageable) {
-        Long parsedId = parseOrderId(orderId, pageable);
-        if (parsedId == null) {
-            return new PageImpl<>(Collections.emptyList(), pageable, 0);
-        }
-
-        Optional<CustomerOrder> orderOptional = customerOrderRepository.findListItemById(parsedId);
-        if (orderOptional.isEmpty()) {
-            return new PageImpl<>(Collections.emptyList(), pageable, 0);
-        }
-
-        CustomerOrder order = orderOptional.get();
-        if (status != null && order.getStatus() != status) {
-            return new PageImpl<>(Collections.emptyList(), pageable, 0);
-        }
-
-        if (pageable.getOffset() > 0) {
-            return new PageImpl<>(Collections.emptyList(), pageable, 1);
-        }
-
-        return new PageImpl<>(List.of(order), pageable, 1);
-    }
-
-    private Long parseOrderId(String orderId, Pageable pageable) {
         try {
-            return Long.valueOf(orderId);
-        } catch (NumberFormatException ex) {
-            return null;
+            Long parsedId = Long.valueOf(orderId);
+            Optional<CustomerOrder> orderOptional = customerOrderRepository.findListItemById(parsedId);
+
+            if (orderOptional.isPresent()) {
+                CustomerOrder order = orderOptional.get();
+                if (status == null || order.getStatus() == status) {
+                    return new PageImpl<>(List.of(order), pageable, 1);
+                }
+            }
+        } catch (NumberFormatException ignored) {
         }
+
+        return new PageImpl<>(Collections.emptyList(), pageable, 0);
     }
 
     private CustomerOrderDTO toCustomerOrderDto(CustomerOrder order, boolean includeItems) {
@@ -255,25 +215,29 @@ public class OrderServiceImpl implements OrderService {
         dto.setCustomer(toUserDto(customer));
         dto.setPayment(toPaymentDto(payment));
         dto.setShipping(toShippingDto(shipping));
+
         dto.setStatusCssClass(toStatusCssClass(order.getStatus()));
         dto.setCreatedAtDisplay(formatDateTime(order.getCreatedAt()));
         dto.setItemCount(order.getItems().stream().mapToInt(OrderItem::getQuantity).sum());
         dto.setTotalAmountDisplay(formatAmount(resolveAmount(order, payment)));
         dto.setCustomerName(customer != null && customer.getName() != null ? customer.getName() : NOT_AVAILABLE);
+
         dto.setShippingMethod(
                 shipping != null && shipping.getMethod() != null ? shipping.getMethod().name() : NOT_AVAILABLE);
-        dto.setPaymentStatusDisplay(
-                payment != null && payment.getStatus() != null ? payment.getStatus().name() : NOT_AVAILABLE);
         dto.setShippingStatusDisplay(
                 shipping != null && shipping.getStatus() != null ? shipping.getStatus().name() : NOT_AVAILABLE);
-        dto.setShipperName(shipping != null && shipping.getShipper() != null && shipping.getShipper().getName() != null
-                ? shipping.getShipper().getName()
-                : NOT_AVAILABLE);
+        dto.setShipperName(
+                shipping != null && shipping.getShipper() != null ? shipping.getShipper().getName() : NOT_AVAILABLE);
+
+        dto.setPaymentStatusDisplay(
+                payment != null && payment.getStatus() != null ? payment.getStatus().name() : NOT_AVAILABLE);
+
         dto.setCanCancel(order.getStatus() == CustomerOrder.OrderStatus.PENDING);
         dto.setCanConfirm(order.getStatus() == CustomerOrder.OrderStatus.PENDING);
         dto.setCanComplete(order.getStatus() == CustomerOrder.OrderStatus.CONFIRMED);
         dto.setCanAdminCancel(order.getStatus() == CustomerOrder.OrderStatus.PENDING
                 || order.getStatus() == CustomerOrder.OrderStatus.CONFIRMED);
+
         dto.setItems(includeItems ? order.getItems().stream().map(this::toItemDto).toList() : List.of());
         return dto;
     }
@@ -289,140 +253,24 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private OrderItemDTO toItemDto(OrderItem item) {
-
-        String title = item.getBook() != null && item.getBook().getTitle() != null
-                ? item.getBook().getTitle()
-                : "Untitled book";
-
         OrderItemDTO dto = new OrderItemDTO();
         dto.setId(item.getId());
         dto.setQuantity(item.getQuantity());
-        dto.setBookTitle(title);
+        dto.setBookTitle(item.getBook() != null ? item.getBook().getTitle() : "Untitled book");
 
         if (item.getBook() != null) {
-
             var book = item.getBook();
-
-            dto.setBook(
-                    BookDTO.builder()
-                            .id(book.getId())
-                            .title(book.getTitle())
-                            .isbn(book.getIsbn())
-                            .description(book.getDescription())
-                            .price(book.getPrice())
-                            .authorId(book.getAuthor() != null ? book.getAuthor().getId() : null)
-                            .authorName(book.getAuthor() != null ? book.getAuthor().getName() : null)
-                            .categoryId(book.getCategory() != null ? book.getCategory().getId() : null)
-                            .categoryName(book.getCategory() != null ? book.getCategory().getName() : null)
-                            .images(List.of())
-                            .stock(null)
-                            .build());
+            dto.setBook(BookDTO.builder()
+                    .id(book.getId()).title(book.getTitle()).price(book.getPrice())
+                    .authorName(book.getAuthor() != null ? book.getAuthor().getName() : null)
+                    .build());
         }
-
         return dto;
     }
 
-    private User resolveCustomer(CustomerOrder order, Payment payment) {
-        if (order.getCustomer() != null) {
-            return order.getCustomer();
-        }
-        return payment != null ? payment.getUser() : null;
-    }
-
-    private void attachCustomerFromPaymentIfMissing(CustomerOrder order) {
-        if (order.getCustomer() == null && order.getPayment() != null && order.getPayment().getUser() != null) {
-            order.setCustomer(order.getPayment().getUser());
-        }
-    }
-
-    private UserDTO toUserDto(User user) {
-        if (user == null) {
-            return null;
-        }
-        return new UserDTO(
-                user.getId(),
-                user.getEmail(),
-                null,
-                user.getName(),
-                user.getPhoneNumber(),
-                user.getRole(),
-                List.of());
-    }
-
-    private PaymentDTO toPaymentDto(Payment payment) {
-        if (payment == null) {
-            return null;
-        }
-        return new PaymentDTO(
-                payment.getId(),
-                payment.getAmount(),
-                payment.getPaymentMethod(),
-                payment.getStatus(),
-                payment.getPaidAt(),
-                payment.getUser() != null ? String.valueOf(payment.getUser().getId()) : null,
-                payment.getOrder() != null ? String.valueOf(payment.getOrder().getId()) : null);
-    }
-
-    private ShippingDTO toShippingDto(Shipping shipping) {
-        if (shipping == null) {
-            return null;
-        }
-        return new ShippingDTO(
-                shipping.getId(),
-                shipping.getStatus(),
-                shipping.getMethod(),
-                shipping.getShipper() != null ? String.valueOf(shipping.getShipper().getId()) : null,
-                shipping.getOrder() != null ? String.valueOf(shipping.getOrder().getId()) : null,
-                shipping.getCreatedAt());
-    }
-
-    private String normalize(String value) {
-        if (value == null) {
-            return null;
-        }
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
-    }
-
-    private void requireCustomerId(Long customerId) {
-        if (customerId == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Customer id is required");
-        }
-    }
-
-    private boolean isAllowedTransition(CustomerOrder.OrderStatus currentStatus,
-            CustomerOrder.OrderStatus targetStatus) {
-        if (currentStatus == null || targetStatus == null || currentStatus == targetStatus) {
-            return false;
-        }
-        return switch (currentStatus) {
-            case PENDING -> targetStatus == CustomerOrder.OrderStatus.CONFIRMED
-                    || targetStatus == CustomerOrder.OrderStatus.CANCELLED;
-            case CONFIRMED -> targetStatus == CustomerOrder.OrderStatus.COMPLETED
-                    || targetStatus == CustomerOrder.OrderStatus.CANCELLED;
-            case COMPLETED, CANCELLED -> false;
-        };
-    }
-
-    private Shipping ensureShipping(CustomerOrder order) {
-        if (order.getShipping() != null) {
-            return order.getShipping();
-        }
-
-        Shipping shipping = new Shipping();
-        shipping.setOrder(order);
-        shipping.setMethod(Shipping.ShippingMethod.STANDARD);
-        shipping.setStatus(Shipping.ShippingStatus.PENDING);
-        shipping.setCreatedAt(LocalDateTime.now());
-        order.setShipping(shipping);
-        return shippingRepository.save(shipping);
-    }
-
     private Payment ensurePayment(CustomerOrder order) {
-        if (order.getPayment() != null) {
+        if (order.getPayment() != null)
             return order.getPayment();
-        }
-
         Payment payment = new Payment();
         payment.setOrder(order);
         payment.setAmount(resolveAmount(order, null));
@@ -433,29 +281,108 @@ public class OrderServiceImpl implements OrderService {
         return paymentRepository.save(payment);
     }
 
+    private User resolveCustomer(CustomerOrder order, Payment payment) {
+        if (order.getCustomer() != null)
+            return order.getCustomer();
+        return payment != null ? payment.getUser() : null;
+    }
+
+    private void attachCustomerFromPaymentIfMissing(CustomerOrder order) {
+        if (order.getCustomer() == null && order.getPayment() != null && order.getPayment().getUser() != null) {
+            order.setCustomer(order.getPayment().getUser());
+        }
+    }
+
+    private UserDTO toUserDto(User user) {
+        if (user == null)
+            return null;
+        return new UserDTO(user.getId(), user.getEmail(), null, user.getName(), user.getPhoneNumber(), user.getRole(),
+                List.of(), user.isShipper());
+    }
+
+    private PaymentDTO toPaymentDto(Payment payment) {
+        if (payment == null)
+            return null;
+        return new PaymentDTO(payment.getId(), payment.getAmount(), payment.getPaymentMethod(), payment.getStatus(),
+                payment.getPaidAt(),
+                payment.getUser() != null ? String.valueOf(payment.getUser().getId()) : null,
+                null);
+    }
+
+    private ShippingDTO toShippingDto(Shipping shipping) {
+        if (shipping == null)
+            return null;
+        return new ShippingDTO(
+                shipping.getId(),
+                shipping.getCost(),
+                shipping.getStatus(),
+                shipping.getMethod(),
+                shipping.getShipper() != null ? shipping.getShipper().getId() : null,
+                shipping.getOrder() != null ? shipping.getOrder().getId() : null,
+                shipping.getCreatedAt(),
+                shipping.getCustomerName(),
+                shipping.getCustomerAddress(),
+                shipping.getCustomerPhone(),
+                shipping.getNote());
+    }
+
+    private String normalize(String value) {
+        if (value == null)
+            return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private void requireCustomerId(Long customerId) {
+        if (customerId == null)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Customer id is required");
+    }
+
+    private boolean isAllowedTransition(CustomerOrder.OrderStatus currentStatus,
+            CustomerOrder.OrderStatus targetStatus) {
+        if (currentStatus == null || targetStatus == null || currentStatus == targetStatus)
+            return false;
+
+        return switch (currentStatus) {
+            case PENDING -> targetStatus == CustomerOrder.OrderStatus.CONFIRMED
+                    || targetStatus == CustomerOrder.OrderStatus.CANCELLED;
+            case CONFIRMED -> targetStatus == CustomerOrder.OrderStatus.COMPLETED
+                    || targetStatus == CustomerOrder.OrderStatus.CANCELLED;
+            case CANCELLED -> false;
+            case COMPLETED -> false;
+        };
+    }
+
     private String formatDateTime(LocalDateTime dateTime) {
         return dateTime == null ? NOT_AVAILABLE : DATE_TIME_FORMATTER.format(dateTime);
     }
 
     private String formatAmount(BigDecimal amount) {
-        if (amount == null) {
+        if (amount == null)
             return NOT_AVAILABLE;
-        }
         NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.forLanguageTag("vi-VN"));
-        numberFormat.setMinimumFractionDigits(0);
-        numberFormat.setMaximumFractionDigits(2);
         return numberFormat.format(amount) + " VND";
     }
 
     private String toStatusCssClass(CustomerOrder.OrderStatus status) {
-        if (status == null) {
+        if (status == null)
             return "status-neutral";
-        }
         return switch (status) {
             case PENDING -> "status-pending";
             case CONFIRMED -> "status-confirmed";
             case COMPLETED -> "status-completed";
             case CANCELLED -> "status-cancelled";
         };
+    }
+
+    @Override
+    public List<CustomerOrderDTO> getOrdersReadyForPickup() {
+        // Chỉ lấy những đơn hàng đã CONFIRMED và chưa có bản ghi Shipping nào
+        List<CustomerOrder> orders = customerOrderRepository
+                .findByStatusAndShippingIsNull(CustomerOrder.OrderStatus.CONFIRMED);
+
+        return orders.stream()
+                .map(order -> toCustomerOrderDto(order, false))
+                .collect(Collectors.toList());
     }
 }

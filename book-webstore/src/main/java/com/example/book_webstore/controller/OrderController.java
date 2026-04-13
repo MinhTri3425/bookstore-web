@@ -3,11 +3,7 @@ package com.example.book_webstore.controller;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.example.book_webstore.dto.CustomerOrderDTO;
@@ -15,18 +11,27 @@ import com.example.book_webstore.model.CustomerOrder;
 import com.example.book_webstore.model.Payment;
 import com.example.book_webstore.model.Shipping;
 import com.example.book_webstore.service.OrderService;
+import com.example.book_webstore.service.ShippingService;
+import com.example.book_webstore.service.ShipperService;
 
 @Controller
 @RequestMapping
 public class OrderController {
 
     private final OrderService orderService;
+    private final ShippingService shippingService;
+    private final ShipperService shipperService;
 
-    public OrderController(OrderService orderService) {
+    // Inject đầy đủ các service liên quan
+    public OrderController(OrderService orderService,
+            ShippingService shippingService,
+            ShipperService shipperService) {
         this.orderService = orderService;
+        this.shippingService = shippingService;
+        this.shipperService = shipperService;
     }
 
-    @GetMapping({"/order", "/admin/orders"})
+    @GetMapping({ "/order", "/admin/orders" })
     public String adminList(
             @RequestParam(required = false) String orderId,
             @RequestParam(required = false) CustomerOrder.OrderStatus status,
@@ -38,17 +43,23 @@ public class OrderController {
         return "order/show";
     }
 
-    @GetMapping({"/order/{id}", "/admin/orders/{id}"})
+    @GetMapping({ "/order/{id}", "/admin/orders/{id}" })
     public String adminDetail(@PathVariable Long id, Model model) {
         CustomerOrderDTO order = orderService.getAdminOrderDetail(id);
+
         model.addAttribute("pageTitle", "Admin Order #" + order.getId());
         model.addAttribute("order", order);
         model.addAttribute("viewMode", "admin");
         model.addAttribute("backPath", "/admin/orders");
+
+        // Load các tùy chọn cho dropdown
         model.addAttribute("orderStatusOptions", CustomerOrder.OrderStatus.values());
         model.addAttribute("paymentStatusOptions", Payment.PaymentStatus.values());
         model.addAttribute("shippingStatusOptions", Shipping.ShippingStatus.values());
-        model.addAttribute("shipperOptions", orderService.getShipperOptions());
+
+        // LẤY TỪ SHIPPER SERVICE thay vì OrderService
+        model.addAttribute("shipperOptions", shipperService.getAllShippers());
+
         return "order/detail";
     }
 
@@ -78,7 +89,15 @@ public class OrderController {
             @RequestParam Shipping.ShippingStatus status,
             @RequestParam(required = false) Long shipperId,
             RedirectAttributes redirectAttributes) {
-        orderService.updateShipping(id, status, shipperId);
+
+        // GỌI TRỰC TIẾP SHIPPING SERVICE để xử lý logic vận chuyển
+        shippingService.updateStatus(id, status);
+
+        // Nếu có shipperId từ admin truyền xuống (chọn tay), thực hiện gán thủ công
+        if (shipperId != null) {
+            shippingService.assignShipperManual(id, shipperId);
+        }
+
         redirectAttributes.addFlashAttribute("successMessage", "Shipping information updated.");
         return "redirect:/admin/orders/" + id;
     }
@@ -119,19 +138,15 @@ public class OrderController {
         return "redirect:/my-orders/" + id + "?customerId=" + customerId;
     }
 
-    private void populateAdminListModel(
-            Model model,
-            Page<CustomerOrderDTO> orderPage,
-            String orderId,
+    // --- Helper Methods ---
+
+    private void populateAdminListModel(Model model, Page<CustomerOrderDTO> orderPage, String orderId,
             CustomerOrder.OrderStatus status) {
         model.addAttribute("pageTitle", "Admin Orders");
         model.addAttribute("pageHeading", "Order Management");
-        model.addAttribute("pageEyebrow", "Admin console");
         model.addAttribute("orders", orderPage.getContent());
         model.addAttribute("currentPage", orderPage.getNumber());
         model.addAttribute("totalPages", orderPage.getTotalPages());
-        model.addAttribute("totalElements", orderPage.getTotalElements());
-        model.addAttribute("pageSize", orderPage.getSize());
         model.addAttribute("statusOptions", CustomerOrder.OrderStatus.values());
         model.addAttribute("selectedStatus", status == null ? "" : status.name());
         model.addAttribute("searchOrderId", orderId == null ? "" : orderId.trim());
@@ -140,22 +155,14 @@ public class OrderController {
         model.addAttribute("detailBasePath", "/admin/orders");
     }
 
-    private void populateCustomerListModel(
-            Model model,
-            Page<CustomerOrderDTO> orderPage,
-            Long customerId,
+    private void populateCustomerListModel(Model model, Page<CustomerOrderDTO> orderPage, Long customerId,
             CustomerOrder.OrderStatus status) {
         model.addAttribute("pageTitle", "My Orders");
-        model.addAttribute("pageHeading", "My Orders");
-        model.addAttribute("pageEyebrow", "Customer view");
         model.addAttribute("orders", orderPage.getContent());
         model.addAttribute("currentPage", orderPage.getNumber());
         model.addAttribute("totalPages", orderPage.getTotalPages());
-        model.addAttribute("totalElements", orderPage.getTotalElements());
-        model.addAttribute("pageSize", orderPage.getSize());
         model.addAttribute("statusOptions", CustomerOrder.OrderStatus.values());
         model.addAttribute("selectedStatus", status == null ? "" : status.name());
-        model.addAttribute("searchOrderId", "");
         model.addAttribute("viewMode", "customer");
         model.addAttribute("listPath", "/my-orders");
         model.addAttribute("detailBasePath", "/my-orders");

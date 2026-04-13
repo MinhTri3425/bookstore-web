@@ -1,5 +1,7 @@
 package com.example.book_webstore.config;
 
+import com.example.book_webstore.model.User;
+import com.example.book_webstore.repository.UserRepository;
 import jakarta.servlet.DispatcherType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -22,55 +24,51 @@ public class SecurityConfig {
     @Autowired
     private UserDetailsService userDetailsService;
 
+    @Autowired
+    private UserRepository userRepository;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable()) // Disable CSRF để dễ làm việc với form (nếu cần)
+                .csrf(csrf -> csrf.disable())
                 .authenticationProvider(authenticationProvider())
                 .authorizeHttpRequests(authz -> authz
-                        // Cho phép các request nội bộ của Spring
                         .dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR).permitAll()
-
-                        // QUAN TRỌNG: Cho phép truy cập tài nguyên tĩnh và THƯ MỤC UPLOADS (ảnh sách)
-                        .requestMatchers(
-                                "/",
-                                "/login",
-                                "/error",
-                                "/css/**",
-                                "/js/**",
-                                "/images/**",
-                                "/uploads/**", // <--- PHẢI CÓ DÒNG NÀY ẢNH MỚI HIỆN
-                                "/books/**", // Cho phép xem chi tiết sách không cần login
-                                "/home")
+                        .requestMatchers("/", "/login", "/error", "/home", "/css/**", "/js/**", "/images/**",
+                                "/uploads/**", "/books/**")
                         .permitAll()
-
-                        // Phân quyền cho Admin
                         .requestMatchers("/admin/**").hasRole("ADMIN")
-
-                        // Tất cả các request khác phải đăng nhập
+                        .requestMatchers("/shipper/**").hasAnyRole("ADMIN", "USER")
+                        .requestMatchers("/cart/**", "/order/**", "/my-orders/**").authenticated()
                         .anyRequest().authenticated())
+
                 .formLogin(form -> form
                         .loginPage("/login")
-                        .usernameParameter("username")
-                        .passwordParameter("password")
                         .successHandler((request, response, authentication) -> {
-                            // Logic chuyển hướng sau khi login thành công
+                            // Lấy thông tin User từ DB
+                            String email = authentication.getName();
+                            User user = userRepository.findByEmail(email);
+
                             Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
                             boolean isAdmin = authorities.stream()
                                     .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
 
+                            // LOGIC: ĐĂNG NHẬP XONG LÀ VÀO DASHBOARD NGAY
                             if (isAdmin) {
+                                // Admin vào Dashboard quản trị
                                 response.sendRedirect("/admin/dashboard");
+                            } else if (user != null && user.isShipper()) {
+                                // Shipper vào Dashboard giao hàng
+                                response.sendRedirect("/shipper/dashboard");
                             } else {
-                                response.sendRedirect("/");
+
+                                response.sendRedirect("/books");
                             }
                         })
                         .permitAll())
                 .logout(logout -> logout
                         .logoutUrl("/logout")
                         .logoutSuccessUrl("/login?logout")
-                        .invalidateHttpSession(true)
-                        .deleteCookies("JSESSIONID")
                         .permitAll());
 
         return http.build();
@@ -83,13 +81,9 @@ public class SecurityConfig {
 
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
-        // Khởi tạo rõ ràng
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-
-        // Ép kiểu nếu IDE bị "ngáo" (tuy nhiên thường không cần nếu import đúng)
         authProvider.setUserDetailsService(userDetailsService);
         authProvider.setPasswordEncoder(passwordEncoder());
-
         return authProvider;
     }
 }

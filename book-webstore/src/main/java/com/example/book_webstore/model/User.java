@@ -46,5 +46,6 @@ public class User {
 
     @OneToMany(mappedBy = "customer")
     private List<CustomerOrder> orders = new ArrayList<>();
+    private boolean isShipper = false;
 
 }
