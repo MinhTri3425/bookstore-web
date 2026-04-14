@@ -91,7 +91,8 @@ public class CartController {
         CartDTO cart = resolveCart(session, authentication, principal);
 
         model.addAttribute("cart", cart);
-        model.addAttribute("cartItemCount", cartService.getItemCount(cart.getId(), resolveCustomerEmail(authentication, principal)));
+        model.addAttribute("cartItemCount",
+                cartService.getItemCount(cart.getId(), resolveCustomerEmail(authentication, principal)));
         model.addAttribute("cartTotal", calculateCartTotal(cart));
         model.addAttribute("appliedCouponCode", session.getAttribute(APPLIED_COUPON_CODE_SESSION_KEY));
         model.addAttribute("message", message);
@@ -101,7 +102,7 @@ public class CartController {
             model.addAttribute("userAddresses", cartService.getUserAddresses(authentication.getName()));
         }
 
-        return "Cart/Cart";
+        return "cart/cart";
     }
 
     @GetMapping("/api/checkout/preview")
@@ -338,7 +339,7 @@ public class CartController {
 
         try {
             orderId = cartService.checkoutSelectedItems(
-                cart.getId(), selectedBookIds, authentication.getName(),
+                    cart.getId(), selectedBookIds, authentication.getName(),
                     selectedAddressId, receiverName, phoneNumber, note, paymentMethod,
                     shippingMethod, productCouponCode, shippingCouponCode);
 

@@ -33,57 +33,54 @@ public class ProxyShipperController {
         if (shipper == null)
             return "redirect:/access-denied";
 
-        // Lấy tất cả đơn hàng đang được gán cho Shipper này (bao gồm cả PENDING và
-        // SHIPPING)
-        // Bạn cần viết thêm hàm này trong ShippingService
-        List<ShippingDTO> myOrders = shippingService.getShippingsByShipperId(shipper.getId());
+        // 1. Lấy danh sách "Chợ đơn" (Đơn chưa có ai nhận - shipperId = null)
+        // Bạn cần viết thêm hàm này: findAllAvailableShippings()
+        List<ShippingDTO> marketOrders = shippingService.getAllAvailableShippings();
+
+        // 2. Lấy danh sách đơn hàng Shipper này ĐÃ NHẬN và ĐANG GIAO
+        // Hàm này lấy shippings theo shipperId và status = SHIPPING
+        List<ShippingDTO> myActiveOrders = shippingService.getActiveShippingsForShipper(shipper.getId());
 
         model.addAttribute("shipper", shipper);
-        model.addAttribute("orders", myOrders);
+        model.addAttribute("marketOrders", marketOrders); // Đơn ở chợ
+        model.addAttribute("myActiveOrders", myActiveOrders); // Đơn của tôi
 
         return "shipper/dashboard";
     }
 
     /**
-     * Xử lý khi Shipper bấm "Đồng ý" (Accept) đơn nổ
+     * Hành động "Nhặt đơn" từ chợ
      */
-    @PostMapping("/accept")
-    public String acceptOrder(@RequestParam Long orderId, Principal principal) {
+    @PostMapping("/pick-up")
+    public String pickUpOrder(@RequestParam Long shippingId, Principal principal) {
         ShipperDTO shipper = shipperService.findShipperByEmail(principal.getName());
         try {
-            shippingService.acceptOrder(orderId, shipper.getId());
-            return "redirect:/shipper/dashboard?success=accepted";
+            // Hàm này sẽ gán shipperId vào Shipping và đổi status sang SHIPPING
+            shippingService.assignShipperToShipping(shippingId, shipper.getId());
+            return "redirect:/shipper/dashboard?success=picked";
         } catch (Exception e) {
             return "redirect:/shipper/dashboard?error=" + e.getMessage();
         }
     }
 
-    /**
-     * Xử lý khi Shipper bấm "Từ chối" (Reject) đơn nổ
-     */
-    @PostMapping("/reject")
-    public String rejectOrder(@RequestParam Long orderId, Principal principal) {
-        ShipperDTO shipper = shipperService.findShipperByEmail(principal.getName());
-        try {
-            shippingService.rejectOrder(orderId, shipper.getId());
-            return "redirect:/shipper/dashboard?info=rejected";
-        } catch (Exception e) {
-            return "redirect:/shipper/dashboard?error=" + e.getMessage();
-        }
-    }
-
-    /**
-     * Xử lý khi giao hàng thành công
-     */
     @PostMapping("/complete")
-    public String completeShipping(@RequestParam Long orderId, Principal principal) {
+    public String completeShipping(@RequestParam("orderId") Long orderId) {
+        // Thêm dòng log này để kiểm tra xem request có vào được đến đây không
+        System.out.println("Shipper dang xac nhan hoan thanh don hang: " + orderId);
+
         shippingService.updateStatus(orderId, Shipping.ShippingStatus.DELIVERED);
         return "redirect:/shipper/dashboard?success=delivered";
     }
 
     @GetMapping("/history")
     public String shippingHistory(Principal principal, Model model) {
+        if (principal == null)
+            return "redirect:/login";
+
         ShipperDTO shipper = shipperService.findShipperByEmail(principal.getName());
+        if (shipper == null)
+            return "redirect:/access-denied";
+
         List<ShippingDTO> history = shippingService.getShippingHistoryForShipper(shipper.getId());
 
         model.addAttribute("history", history);

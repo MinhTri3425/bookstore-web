@@ -1,6 +1,8 @@
 package com.example.book_webstore.dto;
 
 import com.example.book_webstore.model.CustomerOrder;
+
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -46,4 +48,5 @@ public class CustomerOrderDTO {
     private String address;
     private String phoneNumber;
     private String note;
+    private BigDecimal shippingfee;
 }

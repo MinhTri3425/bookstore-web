@@ -204,7 +204,7 @@ public class OrderServiceImpl implements OrderService {
 
             // --- KÍCH HOẠT TỰ ĐỘNG PHÂN SHIPPER TẠI ĐÂY ---
             // Sau khi trừ kho và xác nhận đơn thành công, hệ thống tìm shipper ngay
-            shippingService.autoAssignShipper(id);
+            shippingService.createShippingRecord(id);
         }
 
         // 2. Khi đơn hàng bị CANCELLED: Hoàn lại kho

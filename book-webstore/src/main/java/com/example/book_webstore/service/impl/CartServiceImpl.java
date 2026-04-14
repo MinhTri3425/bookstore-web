@@ -31,6 +31,8 @@ import com.example.book_webstore.service.CartService;
 import com.example.book_webstore.service.payment.strategy.PaymentStrategyResolver;
 import com.example.book_webstore.service.strategy.coupon.CouponCalculationStrategy;
 import com.example.book_webstore.service.strategy.coupon.CouponStrategyFactory;
+import com.example.book_webstore.service.strategy.shipping.ShippingCostStrategy;
+import com.example.book_webstore.service.strategy.shipping.ShippingCostStrategyFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -63,6 +65,7 @@ public class CartServiceImpl implements CartService {
     private final CouponRepository couponRepository;
     private final CouponUsageRepository couponUsageRepository;
     private final CouponStrategyFactory couponStrategyFactory;
+    private final ShippingCostStrategyFactory shippingStrategyFactory;
 
     public CartServiceImpl(CartRepository cartRepository,
             CartItemRepository cartItemRepository,
@@ -75,7 +78,8 @@ public class CartServiceImpl implements CartService {
             PaymentStrategyResolver paymentStrategyResolver,
             CouponRepository couponRepository,
             CouponUsageRepository couponUsageRepository,
-            CouponStrategyFactory couponStrategyFactory) {
+            CouponStrategyFactory couponStrategyFactory,
+            ShippingCostStrategyFactory shippingStrategyFactory) {
         this.cartRepository = cartRepository;
         this.cartItemRepository = cartItemRepository;
         this.bookRepository = bookRepository;
@@ -88,6 +92,7 @@ public class CartServiceImpl implements CartService {
         this.couponRepository = couponRepository;
         this.couponUsageRepository = couponUsageRepository;
         this.couponStrategyFactory = couponStrategyFactory;
+        this.shippingStrategyFactory = shippingStrategyFactory;
     }
 
     @Override
@@ -183,7 +188,7 @@ public class CartServiceImpl implements CartService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .setScale(2, RoundingMode.HALF_UP);
 
-        BigDecimal shippingAmount = calculateShippingFeePlaceholder(selectedShippingMethod)
+        BigDecimal shippingAmount = calculateShippingFeePlaceholder(selectedShippingMethod, order.getId())
                 .setScale(2, RoundingMode.HALF_UP);
 
         Coupon productCoupon = resolveCouponByCodeAndTarget(productCouponCode, Coupon.CouponTarget.PRODUCT);
@@ -413,7 +418,8 @@ public class CartServiceImpl implements CartService {
                 continue;
             }
 
-            CartItem targetItem = cartItemRepository.findByCartIdAndBookId(targetCart.getId(), sourceItem.getBook().getId())
+            CartItem targetItem = cartItemRepository
+                    .findByCartIdAndBookId(targetCart.getId(), sourceItem.getBook().getId())
                     .orElseGet(() -> {
                         CartItem created = new CartItem();
                         created.setCart(targetCart);
@@ -639,17 +645,15 @@ public class CartServiceImpl implements CartService {
 
     // tính phí vận chuyển dựa trên phương thức vận chuyển, placeholder này sẽ được
     // thay thế bằng logic tính phí thực tế từ backend sau này
-    private BigDecimal calculateShippingFeePlaceholder(Shipping.ShippingMethod shippingMethod) {
-        // TODO: integrate real shipping fee calculation from backend
-        // configuration/service.
-        if (shippingMethod == null) {
-            return BigDecimal.ZERO;
-        }
-        return switch (shippingMethod) {
-            case STANDARD -> BigDecimal.valueOf(15000);
-            case FAST -> BigDecimal.valueOf(30000);
-            case ECONOMY -> BigDecimal.valueOf(10000);
-        };
+    private BigDecimal calculateShippingFeePlaceholder(Shipping.ShippingMethod shippingMethod, Long orderId) {
+        ShippingCostStrategy strategy = shippingStrategyFactory.getStrategy(shippingMethod);
+
+        // 2. Tính toán phí dựa trên thông tin đơn hàng
+        // Snapshot: Con số này sẽ được lưu vào record Shipping và không đổi nữa
+        BigDecimal fee = strategy.calculateShippingCost(orderId);
+
+        // 3. Trả về kết quả (đảm bảo không bao giờ null, tối thiểu là 0)
+        return fee != null ? fee : BigDecimal.ZERO;
     }
 
     private String validateAndNormalizePhoneNumber(String phoneNumber) {

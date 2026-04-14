@@ -30,7 +30,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable()) // Lưu ý: Nếu dùng Production nên bật lại và sửa JSP
+                .csrf(csrf -> csrf.disable()) // Lưu ý: Nếu dùng Production nên bật lại và
+                // sửa JSP
                 .authenticationProvider(authenticationProvider())
                 .authorizeHttpRequests(authz -> authz
                         .dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR).permitAll()

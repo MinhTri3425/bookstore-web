@@ -4,108 +4,109 @@
 
 <jsp:include page="/WEB-INF/views/fragments/admin-header.jsp" />
 
-<div class="admin-shipping-container container-fluid mt-4">
+<div class="admin-shipping-container container-fluid mt-4 mb-5">
+    <%-- Tiêu đề và Tổng số lượng --%>
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3><i class="fas fa-truck-loading text-primary"></i> Giám sát Vận chuyển</h3>
-        <span class="badge bg-secondary">Tổng số: ${shippings.size()} vận đơn</span>
-    </div>
-    
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <form action="/admin/shipping" method="get" class="row g-3">
-                <div class="col-md-3">
-                    <input type="text" name="orderId" placeholder="Mã đơn hàng (#...)" value="${searchOrderId}" class="form-control">
-                </div>
-                <div class="col-md-3">
-                    <select name="status" class="form-select">
-                        <option value="">-- Tất cả trạng thái --</option>
-                        <c:forEach var="st" items="${statusOptions}">
-                            <option value="${st}" ${st == selectedStatus ? 'selected' : ''}>${st}</option>
-                        </c:forEach>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter"></i> Lọc</button>
-                </div>
-                <div class="col-md-2">
-                    <a href="/admin/shipping" class="btn btn-outline-secondary w-100">Reset</a>
-                </div>
-            </form>
-        </div>
+        <h3 class="fw-bold"><i class="fas fa-truck-loading text-primary me-2"></i>Giám sát Vận chuyển</h3>
+        <span class="badge bg-secondary shadow-sm px-3 py-2">
+            <i class="fas fa-list-ul me-1"></i> Tổng số: ${shippings != null ? shippings.size() : 0} vận đơn
+        </span>
     </div>
 
-    <div class="card shadow-sm">
+    <%-- Bảng danh sách vận chuyển --%>
+    <div class="card shadow-sm border-0 overflow-hidden">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-dark">
                     <tr>
-                        <th>Mã Đơn</th>
-                        <th>Thông tin khách</th>
-                        <th>Phí Ship</th>
-                        <th>Trạng thái</th>
-                        <th>Shipper đảm nhận</th>
-                        <th class="text-center">Thao tác</th>
+                        <th class="ps-4 py-3" style="width: 12%;">Mã Đơn</th>
+                        <th style="width: 25%;">Khách hàng</th>
+                        <th style="width: 18%;">Phí Ship</th>
+                        <th style="width: 20%;">Trạng thái</th>
+                        <th style="width: 15%;">ID Shipper</th>
+                        <th class="text-center pe-4" style="width: 10%;">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
                     <c:forEach var="s" items="${shippings}">
                         <tr>
-                            <td>
-                                <a href="${pageContext.request.contextPath}/admin/orders/${s.orderId}" class="fw-bold text-decoration-none">
-                                    #${s.orderId} <i class="fas fa-external-link-alt ms-1 small"></i>
-                                </a>
+                            <%-- Mã đơn --%>
+                            <td class="ps-4">
+                                <span class="fw-bold text-primary">#${s.orderId}</span>
                             </td>
+
+                            <%-- Thông tin khách --%>
                             <td>
-                                <div class="small">${s.customerName}</div>
-                                <div class="text-muted small">${s.customerPhone}</div>
+                                <div class="fw-bold text-dark small">${s.customerName}</div>
+                                <div class="text-muted small" style="font-size: 0.75rem;">
+                                    <i class="fas fa-phone-alt me-1 text-secondary"></i>${s.customerPhone}
+                                </div>
                             </td>
+
+                            <%-- Phí ship (Dữ liệu Snapshot) --%>
                             <td>
-                                <span class="text-primary fw-bold">
-                                    <fmt:formatNumber value="${s.cost}" type="number" /> VND
-                                </span>
+                                <div class="fw-bold text-dark">
+                                    <fmt:formatNumber value="${s.cost}" groupingUsed="true" /> ₫
+                                </div>
+                                <div class="text-muted" style="font-size: 0.7rem;">${s.method}</div>
                             </td>
+
+                            <%-- Trạng thái --%>
                             <td>
                                 <c:choose>
                                     <c:when test="${s.status == 'DELIVERED'}">
-                                        <span class="badge bg-success"><i class="fas fa-check"></i> Hoàn thành</span>
+                                        <span class="badge bg-success-subtle text-success border border-success px-2 py-1">
+                                            <i class="fas fa-check-circle me-1"></i>Thành công
+                                        </span>
                                     </c:when>
                                     <c:when test="${s.status == 'SHIPPING'}">
-                                        <span class="badge bg-primary text-white"><i class="fas fa-shipping-fast"></i> Đang giao</span>
+                                        <span class="badge bg-primary-subtle text-primary border border-primary px-2 py-1">
+                                            <i class="fas fa-shipping-fast me-1"></i>Đang giao
+                                        </span>
+                                    </c:when>
+                                    <c:when test="${s.status == 'PENDING'}">
+                                        <span class="badge bg-warning-subtle text-warning border border-warning px-2 py-1 text-uppercase" style="font-size: 0.65rem;">
+                                            Chờ shipper
+                                        </span>
                                     </c:when>
                                     <c:otherwise>
-                                        <span class="badge bg-warning text-dark">${s.status}</span>
+                                        <span class="badge bg-light text-dark border px-2 py-1 small">${s.status}</span>
                                     </c:otherwise>
                                 </c:choose>
                             </td>
+                            
+                            <%-- ID Shipper --%>
                             <td>
-                                <form action="/admin/shipping/${s.orderId}/update" method="post" class="d-flex gap-2">
-                                    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
-                                    
-                                    <select name="shipperId" class="form-select form-select-sm" style="min-width: 140px;">
-                                        <option value="">-- Chưa gán --</option>
-                                        <c:forEach var="shipper" items="${shipperOptions}">
-                                            <option value="${shipper.id}" ${shipper.id == s.shipperId ? 'selected' : ''}>
-                                                ${shipper.name}
-                                            </option>
-                                        </c:forEach>
-                                    </select>
-                                    <input type="hidden" name="status" value="${s.status}">
-                                    <button type="submit" class="btn btn-sm btn-outline-dark" title="Lưu thay đổi">
-                                        <i class="fas fa-save"></i>
-                                    </button>
-                                </form>
+                                <c:choose>
+                                    <c:when test="${not empty s.shipperId}">
+                                        <span class="badge bg-dark rounded-pill px-3" style="font-size: 0.75rem;">
+                                            ID: #${s.shipperId}
+                                        </span>
+                                    </c:when>
+                                    <c:otherwise>
+                                        <span class="text-muted small italic">Chưa có</span>
+                                    </c:otherwise>
+                                </c:choose>
                             </td>
-                            <td class="text-center">
-                                <a href="/admin/orders/${s.orderId}" class="btn btn-sm btn-info text-white">
-                                    <i class="fas fa-eye"></i> Chi tiết
+
+                            <%-- Nút xem chi tiết --%>
+                            <td class="text-center pe-4">
+                                <a href="/admin/orders/${s.orderId}" class="btn btn-sm btn-outline-info rounded-pill px-3 shadow-sm">
+                                    <i class="fas fa-eye me-1"></i>Xem
                                 </a>
                             </td>
                         </tr>
                     </c:forEach>
                     
+                    <%-- Nếu danh sách trống --%>
                     <c:if test="${empty shippings}">
                         <tr>
-                            <td colspan="6" class="text-center py-5 text-muted">Không tìm thấy vận đơn nào.</td>
+                            <td colspan="6" class="text-center py-5">
+                                <div class="opacity-50">
+                                    <i class="fas fa-inbox fa-3x mb-3 text-muted"></i>
+                                    <p class="mb-0">Hiện chưa có dữ liệu vận chuyển nào.</p>
+                                </div>
+                            </td>
                         </tr>
                     </c:if>
                 </tbody>

@@ -28,6 +28,10 @@ public interface ShippingRepository extends JpaRepository<Shipping, Long> {
 
     Optional<Shipping> findByOrderId(Long orderId);
 
+    Optional<Shipping> findByShipperId(Long shipperd);
+
     List<Shipping> findByShipperIdOrderByCreatedAtDesc(Long shipperId);
+
+    List<Shipping> findByShipperIsNullAndStatus(Shipping.ShippingStatus status);
 
 }
