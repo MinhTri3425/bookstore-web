@@ -188,21 +188,6 @@
                                                             </c:choose>
                                                         </div>
 
-                                                        <%-- Nút tìm lại Shipper nếu bị kẹt --%>
-                                                            <c:if
-                                                                test="${order.status == 'CONFIRMED' and (empty order.shipperName or order.shipperName == 'N/A')}">
-                                                                <form
-                                                                    action="${pageContext.request.contextPath}/admin/shipping/${order.id}/re-dispatch"
-                                                                    method="post" class="mt-3">
-                                                                    <input type="hidden" name="${_csrf.parameterName}"
-                                                                        value="${_csrf.token}" />
-                                                                    <button type="submit"
-                                                                        class="btn btn-outline-warning btn-sm w-100 fw-bold">
-                                                                        <i class="fas fa-redo me-1"></i> Thử tìm lại
-                                                                        Shipper
-                                                                    </button>
-                                                                </form>
-                                                            </c:if>
                                                 </div>
                                             </div>
 

@@ -19,6 +19,7 @@ import com.example.book_webstore.model.*;
 import com.example.book_webstore.repository.*;
 import com.example.book_webstore.service.OrderService;
 import com.example.book_webstore.service.ShippingService;
+import com.example.book_webstore.service.state.order.OrderStateMachine;
 import com.example.book_webstore.service.strategy.coupon.CouponCalculationStrategy;
 import com.example.book_webstore.service.strategy.shipping.ShippingCostStrategy;
 import com.example.book_webstore.service.strategy.coupon.CouponStrategyFactory;
@@ -38,6 +39,7 @@ public class OrderServiceImpl implements OrderService {
     private final CouponUsageRepository couponUsageRepository;
     private final ShippingCostStrategyFactory shippingStrategyFactory;
     private final CouponStrategyFactory couponStrategyFactory;
+    private final OrderStateMachine orderStateMachine;
 
     public OrderServiceImpl(
             CustomerOrderRepository customerOrderRepository,
@@ -46,7 +48,8 @@ public class OrderServiceImpl implements OrderService {
             ShippingService shippingService,
             CouponUsageRepository couponUsageRepository,
             ShippingCostStrategyFactory shippingStrategyFactory,
-            CouponStrategyFactory couponStrategyFactory) {
+            CouponStrategyFactory couponStrategyFactory,
+            OrderStateMachine orderStateMachine) {
 
         this.customerOrderRepository = customerOrderRepository;
         this.paymentRepository = paymentRepository;
@@ -55,6 +58,7 @@ public class OrderServiceImpl implements OrderService {
         this.couponUsageRepository = couponUsageRepository;
         this.shippingStrategyFactory = shippingStrategyFactory;
         this.couponStrategyFactory = couponStrategyFactory;
+        this.orderStateMachine = orderStateMachine;
 
     }
 
@@ -177,10 +181,7 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 
         // Kiểm tra logic chuyển đổi trạng thái (StateMachine)
-        if (!isAllowedTransition(order.getStatus(), status)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Invalid order status transition: " + order.getStatus() + " -> " + status);
-        }
+        orderStateMachine.assertTransitionAllowed(order.getStatus(), status);
 
         // --- LOGIC TRỪ TỒN KHO (STOCK) ---
         if (status == CustomerOrder.OrderStatus.CONFIRMED && order.getStatus() == CustomerOrder.OrderStatus.PENDING) {
@@ -494,27 +495,6 @@ public class OrderServiceImpl implements OrderService {
     private void requireCustomerId(Long id) {
         if (id == null)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
-    }
-
-    private boolean isAllowedTransition(CustomerOrder.OrderStatus current,
-            CustomerOrder.OrderStatus target) {
-        // Nếu không có trạng thái hoặc trạng thái không đổi, vẫn cho phép tiếp tục
-        if (current == null || target == null)
-            return false;
-        if (current == target)
-            return true;
-
-        return switch (current) {
-            case PENDING -> target == CustomerOrder.OrderStatus.CONFIRMED
-                    || target == CustomerOrder.OrderStatus.CANCEL_REQUESTED
-                    || target == CustomerOrder.OrderStatus.CANCELLED;
-            case CANCEL_REQUESTED -> target == CustomerOrder.OrderStatus.PENDING
-                    || target == CustomerOrder.OrderStatus.CONFIRMED
-                    || target == CustomerOrder.OrderStatus.CANCELLED;
-            case CONFIRMED -> target == CustomerOrder.OrderStatus.COMPLETED
-                    || target == CustomerOrder.OrderStatus.CANCELLED;
-            default -> false;
-        };
     }
 
     private String formatDateTime(LocalDateTime dt) {
