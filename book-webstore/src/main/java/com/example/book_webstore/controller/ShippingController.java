@@ -60,4 +60,5 @@ public class ShippingController {
         }
         return "redirect:/admin/shipping";
     }
+
 }

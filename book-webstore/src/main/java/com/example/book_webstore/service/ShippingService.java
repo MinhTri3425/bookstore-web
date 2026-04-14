@@ -39,4 +39,6 @@ public interface ShippingService {
 
     // Trong ShippingService.java
     List<ShippingDTO> getShippingsByShipperId(Long shipperId);
+
+    void undoLastShippingAction();
 }

@@ -8,6 +8,7 @@ import com.example.book_webstore.service.ShippingService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.security.Principal;
 import java.util.List;
@@ -85,5 +86,21 @@ public class ProxyShipperController {
 
         model.addAttribute("history", history);
         return "shipper/history";
+    }
+
+    @PostMapping("/undo")
+    public String undo(RedirectAttributes ra) {
+        try {
+            // Gọi Service để bốc lệnh cuối ra và hoàn tác
+            shippingService.undoLastShippingAction();
+
+            // Cách 1: Dùng Parameter (Khớp với file JSP của bạn đang check param.success)
+            return "redirect:/shipper/dashboard?success=undone";
+
+        } catch (Exception e) {
+            // Trả về lỗi nếu không có gì để undo
+            return "redirect:/shipper/dashboard?error="
+                    + java.net.URLEncoder.encode(e.getMessage(), java.nio.charset.StandardCharsets.UTF_8);
+        }
     }
 }

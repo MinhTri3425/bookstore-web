@@ -1,6 +1,8 @@
 package com.example.book_webstore.dto;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
 import com.example.book_webstore.model.Shipping;
 
 import lombok.AllArgsConstructor;
@@ -25,4 +27,11 @@ public class ShippingDTO {
     private String customerAddress;
     private String customerPhone;
     private String note;
+
+    public String getCreatedAtDisplay() {
+        if (this.createdAt == null)
+            return "";
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+        return this.createdAt.format(formatter);
+    }
 }
