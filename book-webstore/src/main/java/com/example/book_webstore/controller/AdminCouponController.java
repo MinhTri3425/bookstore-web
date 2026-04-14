@@ -2,6 +2,7 @@ package com.example.book_webstore.controller;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.example.book_webstore.dto.CouponDTO;
+import com.example.book_webstore.model.Coupon;
 import com.example.book_webstore.service.CouponService;
 import com.example.book_webstore.service.facade.BookQueryFacade;
 
@@ -35,6 +37,7 @@ public class AdminCouponController {
     public String addCouponForm(Model model) {
         CouponDTO coupon = new CouponDTO();
         coupon.setActive(true);
+        coupon.setTarget(Coupon.CouponTarget.PRODUCT);
         model.addAttribute("coupon", coupon);
         model.addAttribute("books", bookQueryFacade.getAllBooks());
         return "admin/coupon-form";
@@ -71,8 +74,11 @@ public class AdminCouponController {
         try {
             couponService.deleteCoupon(id);
             ra.addFlashAttribute("successMessage", "Đã xóa coupon.");
+        } catch (ResponseStatusException e) {
+            ra.addFlashAttribute("errorMessage",
+                    e.getReason() != null ? e.getReason() : "Không thể xóa mã giảm giá này.");
         } catch (Exception e) {
-            ra.addFlashAttribute("errorMessage", e.getMessage());
+            ra.addFlashAttribute("errorMessage", "Không thể xóa mã giảm giá này.");
         }
         return "redirect:/admin/coupons";
     }

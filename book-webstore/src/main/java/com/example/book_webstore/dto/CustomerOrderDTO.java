@@ -32,8 +32,12 @@ public class CustomerOrderDTO {
     private String shippingStatusDisplay;
     private String shipperName;
     private String couponCode;
+    private String productCouponCode;
+    private String shippingCouponCode;
     private String subtotalAmountDisplay;
     private String discountAmountDisplay;
+    private String productDiscountAmountDisplay;
+    private String shippingDiscountAmountDisplay;
     private boolean canCancel;
     private boolean canConfirm;
     private boolean canComplete;

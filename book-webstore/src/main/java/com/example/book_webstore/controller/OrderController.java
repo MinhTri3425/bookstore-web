@@ -150,9 +150,14 @@ public class OrderController {
 
     private void populateAdminListModel(Model model, Page<CustomerOrderDTO> orderPage, String orderId,
             CustomerOrder.OrderStatus status) {
+        model.addAttribute("pageTitle", "Order Management");
+        model.addAttribute("pageEyebrow", "Admin");
+        model.addAttribute("pageHeading", "Quản lý đơn hàng");
         model.addAttribute("orders", orderPage.getContent());
         model.addAttribute("currentPage", orderPage.getNumber());
         model.addAttribute("totalPages", orderPage.getTotalPages());
+        model.addAttribute("totalElements", orderPage.getTotalElements());
+        model.addAttribute("pageSize", orderPage.getSize());
         model.addAttribute("statusOptions", CustomerOrder.OrderStatus.values());
         model.addAttribute("selectedStatus", status == null ? "" : status.name());
         model.addAttribute("searchOrderId", orderId == null ? "" : orderId.trim());
@@ -161,9 +166,13 @@ public class OrderController {
 
     private void populateCustomerListModel(Model model, Page<CustomerOrderDTO> orderPage,
             CustomerOrder.OrderStatus status) {
+        model.addAttribute("pageTitle", "Đơn hàng của tôi");
+        model.addAttribute("pageEyebrow", "Tài khoản");
         model.addAttribute("orders", orderPage.getContent());
         model.addAttribute("currentPage", orderPage.getNumber());
         model.addAttribute("totalPages", orderPage.getTotalPages());
+        model.addAttribute("totalElements", orderPage.getTotalElements());
+        model.addAttribute("pageSize", orderPage.getSize());
         model.addAttribute("statusOptions", CustomerOrder.OrderStatus.values());
         model.addAttribute("selectedStatus", status == null ? "" : status.name());
         model.addAttribute("listPath", "/my-orders");

@@ -60,11 +60,21 @@ public class OrderServiceImpl implements OrderService {
 
     // ================= COUPON =================
     private void restoreCouponUsage(CustomerOrder order) {
-        if (order.getCoupon() != null && order.getCustomer() != null) {
+        if (order.getCustomer() == null) {
+            return;
+        }
+
+        Set<Long> couponIds = new HashSet<>();
+        if (order.getCoupon() != null) {
+            couponIds.add(order.getCoupon().getId());
+        }
+        if (order.getShippingCoupon() != null) {
+            couponIds.add(order.getShippingCoupon().getId());
+        }
+
+        for (Long couponId : couponIds) {
             couponUsageRepository
-                    .findByCouponIdAndCustomerId(
-                            order.getCoupon().getId(),
-                            order.getCustomer().getId())
+                    .findByCouponIdAndCustomerId(couponId, order.getCustomer().getId())
                     .ifPresent(usage -> {
                         int next = usage.getUsageCount() - 1;
                         if (next <= 0) {
@@ -269,7 +279,11 @@ public class OrderServiceImpl implements OrderService {
             CustomerOrder.OrderStatus status,
             Pageable pageable) {
         try {
-            Long id = Long.valueOf(orderId);
+            String normalizedOrderId = orderId == null ? "" : orderId.trim();
+            if (normalizedOrderId.startsWith("#")) {
+                normalizedOrderId = normalizedOrderId.substring(1).trim();
+            }
+            Long id = Long.valueOf(normalizedOrderId);
             Optional<CustomerOrder> opt = customerOrderRepository.findListItemById(id);
 
             if (opt.isPresent()) {
@@ -315,15 +329,23 @@ public class OrderServiceImpl implements OrderService {
 
         // Tính toán tài chính để hiển thị
         BigDecimal subtotal = calculateSubtotal(order);
-        BigDecimal discount = order.getDiscountAmount() != null ? order.getDiscountAmount() : BigDecimal.ZERO;
+        BigDecimal productDiscount = order.getDiscountAmount() != null ? order.getDiscountAmount() : BigDecimal.ZERO;
+        BigDecimal shippingDiscount = order.getShippingDiscountAmount() != null
+                ? order.getShippingDiscountAmount()
+                : BigDecimal.ZERO;
+        BigDecimal discount = productDiscount.add(shippingDiscount);
         BigDecimal total = resolveAmount(order, payment);
 
         dto.setSubtotalAmountDisplay(formatAmount(subtotal));
         dto.setDiscountAmountDisplay(formatAmount(discount));
+        dto.setProductDiscountAmountDisplay(formatAmount(productDiscount));
+        dto.setShippingDiscountAmountDisplay(formatAmount(shippingDiscount));
         dto.setTotalAmountDisplay(formatAmount(total));
 
         dto.setCustomerName(customer != null ? customer.getName() : NOT_AVAILABLE);
         dto.setCouponCode(order.getCoupon() != null ? order.getCoupon().getCode() : null);
+        dto.setProductCouponCode(order.getCoupon() != null ? order.getCoupon().getCode() : null);
+        dto.setShippingCouponCode(order.getShippingCoupon() != null ? order.getShippingCoupon().getCode() : null);
 
         // Xử lý thông tin Vận chuyển
         if (shipping != null) {
@@ -560,21 +582,51 @@ public class OrderServiceImpl implements OrderService {
             }
         }
 
-        // 3. Tiền giảm giá Coupon
-        BigDecimal discount = BigDecimal.ZERO;
+        // 3. Tiền giảm giá Coupon sản phẩm
+        BigDecimal productDiscount = BigDecimal.ZERO;
         if (order.getCoupon() != null) {
             CouponCalculationStrategy couponStrategy = couponStrategyFactory.getStrategy(order.getCoupon().getType());
             if (couponStrategy != null) {
-                discount = couponStrategy.calculateDiscount(order.getCoupon(), subtotal);
-                order.setDiscountAmount(discount);
+                productDiscount = couponStrategy.calculateDiscount(order.getCoupon(), subtotal);
+                if (order.getCoupon().getMaxDiscountValue() != null
+                        && productDiscount.compareTo(order.getCoupon().getMaxDiscountValue()) > 0) {
+                    productDiscount = order.getCoupon().getMaxDiscountValue();
+                }
+                if (productDiscount.compareTo(subtotal) > 0) {
+                    productDiscount = subtotal;
+                }
             }
         }
+        order.setDiscountAmount(productDiscount.max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP));
 
-        // 4. Tính toán tổng cuối cùng (Final Total)
-        // Công thức: (Subtotal - Discount) + Shipping
-        BigDecimal finalAmount = subtotal.subtract(discount).add(shippingCost).max(BigDecimal.ZERO);
+        // 4. Tiền giảm giá Coupon ship
+        BigDecimal shippingDiscount = BigDecimal.ZERO;
+        if (order.getShippingCoupon() != null && shippingCost.compareTo(BigDecimal.ZERO) > 0) {
+            CouponCalculationStrategy shippingCouponStrategy = couponStrategyFactory
+                    .getStrategy(order.getShippingCoupon().getType());
+            if (shippingCouponStrategy != null) {
+                shippingDiscount = shippingCouponStrategy.calculateDiscount(order.getShippingCoupon(), shippingCost);
+                if (order.getShippingCoupon().getMaxDiscountValue() != null
+                        && shippingDiscount.compareTo(order.getShippingCoupon().getMaxDiscountValue()) > 0) {
+                    shippingDiscount = order.getShippingCoupon().getMaxDiscountValue();
+                }
+                if (shippingDiscount.compareTo(shippingCost) > 0) {
+                    shippingDiscount = shippingCost;
+                }
+            }
+        }
+        order.setShippingDiscountAmount(shippingDiscount.max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP));
 
-        // 5. Cập nhật Payment
+        // 5. Tính toán tổng cuối cùng
+        // Công thức: subtotal - giảm sản phẩm + phí ship - giảm ship
+        BigDecimal finalAmount = subtotal
+                .subtract(order.getDiscountAmount())
+                .add(shippingCost)
+                .subtract(order.getShippingDiscountAmount())
+                .max(BigDecimal.ZERO)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        // 6. Cập nhật Payment
         Payment payment = ensurePayment(order);
         payment.setAmount(finalAmount);
 

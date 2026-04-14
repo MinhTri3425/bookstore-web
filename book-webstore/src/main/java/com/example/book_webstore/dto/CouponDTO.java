@@ -17,6 +17,7 @@ public class CouponDTO {
     private Long id;
     private String code;
     private Coupon.CouponType type;
+    private Coupon.CouponTarget target;
     private BigDecimal value;
     private boolean active;
     private int maxUsePerUser;

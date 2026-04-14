@@ -8,36 +8,37 @@ import java.math.BigDecimal;
 import java.util.List;
 
 public interface CartService {
-    CartDTO getOrCreateCart(Long cartId);
+        CartDTO getOrCreateCart(Long cartId);
 
-    CartDTO addToCart(Long cartId, Long bookId, int quantity);
+        CartDTO addToCart(Long cartId, Long bookId, int quantity);
 
-    CartDTO removeFromCart(Long cartId, Long bookId);
+        CartDTO removeFromCart(Long cartId, Long bookId);
 
-    CartDTO updateItemQuantity(Long cartId, Long bookId, int quantity);
+        CartDTO updateItemQuantity(Long cartId, Long bookId, int quantity);
 
-    Long checkoutSelectedItems(Long cartId,
-            List<Long> selectedBookIds,
-            String customerEmail,
-            Long selectedAddressId,
-            String receiverName,
-            String phoneNumber,
-            String note,
-            Payment.PaymentMethod paymentMethod,
-            String shippingMethod,
-            String couponCode);
+        Long checkoutSelectedItems(Long cartId,
+                        List<Long> selectedBookIds,
+                        String customerEmail,
+                        Long selectedAddressId,
+                        String receiverName,
+                        String phoneNumber,
+                        String note,
+                        Payment.PaymentMethod paymentMethod,
+                        String shippingMethod,
+                        String productCouponCode,
+                        String shippingCouponCode);
 
-    BigDecimal getOrderPaymentAmount(Long orderId);
+        BigDecimal getOrderPaymentAmount(Long orderId);
 
-    void updatePaymentStatus(Long orderId, boolean paid);
+        void updatePaymentStatus(Long orderId, boolean paid);
 
-    List<AddressDTO> getUserAddresses(String customerEmail);
+        List<AddressDTO> getUserAddresses(String customerEmail);
 
-    AddressDTO addUserAddress(String customerEmail,
-            String street,
-            String ward,
-            String district,
-            String city);
+        AddressDTO addUserAddress(String customerEmail,
+                        String street,
+                        String ward,
+                        String district,
+                        String city);
 
-    long getItemCount(Long cartId);
+        long getItemCount(Long cartId);
 }

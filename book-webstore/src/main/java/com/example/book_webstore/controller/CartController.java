@@ -2,11 +2,14 @@ package com.example.book_webstore.controller;
 
 import com.example.book_webstore.dto.CartDTO;
 import com.example.book_webstore.dto.CartItemDTO;
+import com.example.book_webstore.dto.CheckoutCouponOptionDTO;
 import com.example.book_webstore.dto.CustomerOrderDTO;
 import com.example.book_webstore.model.Coupon;
+import com.example.book_webstore.model.CouponUsage;
 import com.example.book_webstore.model.Payment;
 import com.example.book_webstore.model.Shipping;
 import com.example.book_webstore.model.User;
+import com.example.book_webstore.repository.CouponUsageRepository;
 import com.example.book_webstore.repository.UserRepository;
 import com.example.book_webstore.repository.CouponRepository;
 import com.example.book_webstore.service.CartService;
@@ -32,11 +35,16 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.security.Principal;
 import java.util.Optional;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDateTime;
+import java.text.NumberFormat;
+import java.util.Locale;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.ArrayList;
 
 @Controller
 public class CartController {
@@ -49,6 +57,7 @@ public class CartController {
     private final ShippingCostStrategyFactory shippingStrategyFactory;
     private final CouponStrategyFactory couponStrategyFactory;
     private final CouponRepository couponRepository;
+    private final CouponUsageRepository couponUsageRepository;
     private final VnPayService vnPayService;
 
     public CartController(CartService cartService,
@@ -58,6 +67,7 @@ public class CartController {
             ShippingCostStrategyFactory shippingStrategyFactory,
             CouponStrategyFactory couponStrategyFactory,
             CouponRepository couponRepository,
+            CouponUsageRepository couponUsageRepository,
             VnPayService vnPayService) {
         this.cartService = cartService;
         this.orderService = orderService;
@@ -66,6 +76,7 @@ public class CartController {
         this.shippingStrategyFactory = shippingStrategyFactory;
         this.couponStrategyFactory = couponStrategyFactory;
         this.couponRepository = couponRepository;
+        this.couponUsageRepository = couponUsageRepository;
         this.vnPayService = vnPayService;
     }
 
@@ -92,7 +103,7 @@ public class CartController {
             model.addAttribute("userAddresses", cartService.getUserAddresses(authentication.getName()));
         }
 
-        return "cart/cart";
+        return "Cart/Cart";
     }
 
     @GetMapping("/api/checkout/preview")
@@ -100,8 +111,10 @@ public class CartController {
     public Map<String, Object> previewOrder(
             @RequestParam String shippingMethod,
             @RequestParam List<Long> bookIds,
-            @RequestParam(required = false) String couponCode,
-            HttpSession session) {
+            @RequestParam(required = false) String productCouponCode,
+            @RequestParam(required = false) String shippingCouponCode,
+            HttpSession session,
+            Authentication authentication) {
 
         Map<String, Object> response = new HashMap<>();
 
@@ -114,39 +127,37 @@ public class CartController {
                 .map(item -> item.getBook().getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // 2. Gọi Strategy tính phí ship (Không cần OrderId vì tính nháp)
-        BigDecimal shippingFee = BigDecimal.ZERO;
-        try {
-            Shipping.ShippingMethod method = Shipping.ShippingMethod.valueOf(shippingMethod.toUpperCase());
-            ShippingCostStrategy strategy = shippingStrategyFactory.getStrategy(method);
-            if (strategy != null) {
-                // Vì bạn dùng Long orderId trong strategy, ở đây ta truyền null hoặc -1
-                // Nếu strategy của bạn check DB, hãy đảm bảo nó handle được trường hợp null
-                shippingFee = strategy.calculateShippingCost(null);
-            }
-        } catch (Exception ignored) {
-        }
+        // 2. Gọi Strategy tính phí ship
+        BigDecimal shippingFee = resolveShippingFee(shippingMethod);
 
-        // 3. Gọi Strategy tính giảm giá coupon
-        BigDecimal discount = BigDecimal.ZERO;
-        if (couponCode != null && !couponCode.isBlank()) {
-            Optional<Coupon> couponOpt = couponRepository.findByCodeIgnoreCase(couponCode.trim());
-            if (couponOpt.isPresent()) {
-                Coupon coupon = couponOpt.get();
-                CouponCalculationStrategy strategy = couponStrategyFactory.getStrategy(coupon.getType());
-                if (strategy != null) {
-                    discount = strategy.calculateDiscount(coupon, subtotal);
-                }
-            }
-        }
+        // 3. Validate và tính giảm cho coupon sản phẩm + ship
+        List<CheckoutCouponOptionDTO> productOptions = buildCouponOptions(selectedItems, subtotal, shippingFee,
+                Coupon.CouponTarget.PRODUCT, authentication != null ? authentication.getName() : null);
+        List<CheckoutCouponOptionDTO> shippingOptions = buildCouponOptions(selectedItems, subtotal, shippingFee,
+                Coupon.CouponTarget.SHIPPING, authentication != null ? authentication.getName() : null);
+
+        BigDecimal productDiscount = resolveDiscountFromSelectedCode(productOptions, productCouponCode, selectedItems,
+                subtotal, shippingFee);
+        BigDecimal shippingDiscount = resolveDiscountFromSelectedCode(shippingOptions, shippingCouponCode,
+                selectedItems,
+                subtotal, shippingFee);
 
         // 4. Tổng hợp dữ liệu trả về
-        BigDecimal finalTotal = subtotal.add(shippingFee).subtract(discount).max(BigDecimal.ZERO);
+        BigDecimal finalTotal = subtotal
+                .subtract(productDiscount)
+                .add(shippingFee)
+                .subtract(shippingDiscount)
+                .max(BigDecimal.ZERO)
+                .setScale(2, RoundingMode.HALF_UP);
 
         response.put("subtotal", subtotal);
         response.put("shippingFee", shippingFee);
-        response.put("discount", discount);
+        response.put("productDiscount", productDiscount);
+        response.put("shippingDiscount", shippingDiscount);
+        response.put("discount", productDiscount.add(shippingDiscount));
         response.put("finalTotal", finalTotal);
+        response.put("productCoupons", productOptions);
+        response.put("shippingCoupons", shippingOptions);
 
         return response;
     }
@@ -237,7 +248,7 @@ public class CartController {
         checkoutCart.setItems(selectedItems);
 
         return renderCheckoutPage(model, authentication.getName(), selectedItems, selectedBookIds,
-                calculateCartTotal(checkoutCart), null, null);
+                calculateCartTotal(checkoutCart), null, null, "STANDARD", null, null);
     }
 
     @PostMapping("/checkout/address/add")
@@ -287,7 +298,7 @@ public class CartController {
         }
 
         return renderCheckoutPage(model, authentication.getName(), selectedItems, selectedBookIds,
-                calculateCartTotal(checkoutCart), selectedAddressId, message);
+                calculateCartTotal(checkoutCart), selectedAddressId, message, "STANDARD", null, null);
     }
 
     @PostMapping("/checkout/place")
@@ -299,9 +310,9 @@ public class CartController {
             @RequestParam(value = "note", required = false) String note,
             @RequestParam(value = "paymentMethod", defaultValue = "CASH") Payment.PaymentMethod paymentMethod,
 
-            // CẦN THÊM 2 DÒNG NÀY ĐỂ NHẬN DỮ LIỆU TỪ JSP
             @RequestParam(value = "shippingMethod", defaultValue = "STANDARD") String shippingMethod,
-            @RequestParam(value = "couponCode", required = false) String couponCode,
+            @RequestParam(value = "productCouponCode", required = false) String productCouponCode,
+            @RequestParam(value = "shippingCouponCode", required = false) String shippingCouponCode,
 
             HttpServletRequest request,
             HttpSession session,
@@ -322,11 +333,10 @@ public class CartController {
         Long orderId;
 
         try {
-            // Cập nhật hàm này để lưu cả shippingMethod và couponCode vào Order trước
             orderId = cartService.checkoutSelectedItems(
                     cartId, selectedBookIds, authentication.getName(),
                     selectedAddressId, receiverName, phoneNumber, note, paymentMethod,
-                    shippingMethod, couponCode); // Truyền thêm vào đây
+                    shippingMethod, productCouponCode, shippingCouponCode);
 
             // SAU ĐÓ MỚI GỌI HÀM NÀY ĐỂ TÍNH TIỀN CHUẨN
             orderService.refreshOrderTotal(orderId);
@@ -458,12 +468,26 @@ public class CartController {
             List<Long> selectedBookIds,
             BigDecimal selectedTotal,
             Long selectedAddressId,
-            String message) {
+            String message,
+            String shippingMethod,
+            String selectedProductCouponCode,
+            String selectedShippingCouponCode) {
         User user = userRepository.findByEmail(customerEmail);
+
+        BigDecimal shippingFee = resolveShippingFee(shippingMethod);
+        List<CheckoutCouponOptionDTO> productCoupons = buildCouponOptions(selectedItems, selectedTotal, shippingFee,
+                Coupon.CouponTarget.PRODUCT, customerEmail);
+        List<CheckoutCouponOptionDTO> shippingCoupons = buildCouponOptions(selectedItems, selectedTotal, shippingFee,
+                Coupon.CouponTarget.SHIPPING, customerEmail);
 
         model.addAttribute("selectedItems", selectedItems);
         model.addAttribute("selectedBookIds", selectedBookIds);
         model.addAttribute("selectedTotal", selectedTotal);
+        model.addAttribute("selectedShippingMethod", shippingMethod == null ? "STANDARD" : shippingMethod);
+        model.addAttribute("selectedProductCouponCode", selectedProductCouponCode);
+        model.addAttribute("selectedShippingCouponCode", selectedShippingCouponCode);
+        model.addAttribute("productCoupons", productCoupons);
+        model.addAttribute("shippingCoupons", shippingCoupons);
         model.addAttribute("paymentMethods", Payment.PaymentMethod.values());
         model.addAttribute("userAddresses", cartService.getUserAddresses(customerEmail));
         model.addAttribute("selectedAddressId", selectedAddressId);
@@ -471,6 +495,155 @@ public class CartController {
         model.addAttribute("phoneNumber", user != null && user.getPhoneNumber() != null ? user.getPhoneNumber() : "");
         model.addAttribute("message", message);
         return "order/checkout";
+    }
+
+    private BigDecimal resolveShippingFee(String shippingMethod) {
+        try {
+            Shipping.ShippingMethod method = Shipping.ShippingMethod.valueOf(shippingMethod.toUpperCase());
+            ShippingCostStrategy strategy = shippingStrategyFactory.getStrategy(method);
+            return strategy == null ? BigDecimal.ZERO : strategy.calculateShippingCost(null);
+        } catch (Exception ex) {
+            return BigDecimal.ZERO;
+        }
+    }
+
+    private List<CheckoutCouponOptionDTO> buildCouponOptions(List<CartItemDTO> selectedItems,
+            BigDecimal subtotal,
+            BigDecimal shippingFee,
+            Coupon.CouponTarget target,
+            String customerEmail) {
+        List<Coupon> coupons = couponRepository.findAllByTargetOrderByIdDesc(target);
+        List<CheckoutCouponOptionDTO> options = new ArrayList<>();
+        for (Coupon coupon : coupons) {
+            String reason = evaluateCouponEligibilityReason(coupon, selectedItems, subtotal, shippingFee,
+                    customerEmail);
+            boolean eligible = reason == null;
+            options.add(new CheckoutCouponOptionDTO(
+                    coupon.getId(),
+                    coupon.getCode(),
+                    coupon.getType(),
+                    coupon.getTarget(),
+                    formatCouponValue(coupon),
+                    eligible,
+                    eligible ? "Đủ điều kiện áp dụng" : reason));
+        }
+        return options;
+    }
+
+    private String evaluateCouponEligibilityReason(Coupon coupon,
+            List<CartItemDTO> selectedItems,
+            BigDecimal subtotal,
+            BigDecimal shippingFee,
+            String customerEmail) {
+        if (!coupon.isActive()) {
+            return "Coupon đang tắt";
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (coupon.getStartAt() != null && now.isBefore(coupon.getStartAt())) {
+            return "Chưa tới thời gian áp dụng";
+        }
+        if (coupon.getEndAt() != null && now.isAfter(coupon.getEndAt())) {
+            return "Coupon đã hết hạn";
+        }
+        if (coupon.getMinOrderValue() != null && subtotal.compareTo(coupon.getMinOrderValue()) < 0) {
+            return "Chưa đủ giá trị đơn tối thiểu";
+        }
+
+        if (customerEmail != null && !customerEmail.isBlank()) {
+            User customer = userRepository.findByEmail(customerEmail);
+            if (customer != null) {
+                CouponUsage usage = couponUsageRepository.findByCouponIdAndCustomerId(coupon.getId(), customer.getId())
+                        .orElse(null);
+                int usedCount = usage != null ? usage.getUsageCount() : 0;
+                if (usedCount >= coupon.getMaxUsePerUser()) {
+                    return "Đã hết lượt dùng của bạn";
+                }
+            }
+        }
+        if (coupon.getTotalUsageLimit() != null) {
+            long totalUsage = couponUsageRepository.sumUsageCountByCouponId(coupon.getId());
+            if (totalUsage >= coupon.getTotalUsageLimit()) {
+                return "Coupon đã hết lượt";
+            }
+        }
+
+        if (coupon.getTarget() == Coupon.CouponTarget.PRODUCT) {
+            BigDecimal applicableSubtotal = calculateApplicableSubtotal(coupon, selectedItems);
+            if (applicableSubtotal.compareTo(BigDecimal.ZERO) <= 0) {
+                return "Không áp dụng cho sản phẩm đã chọn";
+            }
+        }
+        if (coupon.getTarget() == Coupon.CouponTarget.SHIPPING && shippingFee.compareTo(BigDecimal.ZERO) <= 0) {
+            return "Không có phí ship để áp mã";
+        }
+        return null;
+    }
+
+    private BigDecimal resolveDiscountFromSelectedCode(List<CheckoutCouponOptionDTO> options,
+            String selectedCode,
+            List<CartItemDTO> selectedItems,
+            BigDecimal subtotal,
+            BigDecimal shippingFee) {
+        if (selectedCode == null || selectedCode.isBlank()) {
+            return BigDecimal.ZERO;
+        }
+        CheckoutCouponOptionDTO selected = options.stream()
+                .filter(option -> option.getCode().equalsIgnoreCase(selectedCode.trim()))
+                .findFirst()
+                .orElse(null);
+        if (selected == null || !selected.isEligible()) {
+            return BigDecimal.ZERO;
+        }
+
+        Coupon coupon = couponRepository.findByCodeIgnoreCase(selected.getCode()).orElse(null);
+        if (coupon == null) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal base = coupon.getTarget() == Coupon.CouponTarget.SHIPPING
+                ? shippingFee
+                : calculateApplicableSubtotal(coupon, selectedItems);
+        if (base.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        CouponCalculationStrategy strategy = couponStrategyFactory.getStrategy(coupon.getType());
+        BigDecimal discount = strategy.calculateDiscount(coupon, base);
+        if (coupon.getMaxDiscountValue() != null && discount.compareTo(coupon.getMaxDiscountValue()) > 0) {
+            discount = coupon.getMaxDiscountValue();
+        }
+        if (discount.compareTo(base) > 0) {
+            discount = base;
+        }
+        if (coupon.getTarget() == Coupon.CouponTarget.PRODUCT && discount.compareTo(subtotal) > 0) {
+            discount = subtotal;
+        }
+        return discount.max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal calculateApplicableSubtotal(Coupon coupon, List<CartItemDTO> selectedItems) {
+        if (coupon.getApplicableBooks() == null || coupon.getApplicableBooks().isEmpty()) {
+            return selectedItems.stream()
+                    .map(item -> item.getBook().getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add)
+                    .setScale(2, RoundingMode.HALF_UP);
+        }
+
+        Set<Long> applicableBookIds = coupon.getApplicableBooks().stream().map(book -> book.getId())
+                .collect(java.util.stream.Collectors.toSet());
+        return selectedItems.stream()
+                .filter(item -> item.getBook() != null && applicableBookIds.contains(item.getBook().getId()))
+                .map(item -> item.getBook().getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private String formatCouponValue(Coupon coupon) {
+        if (coupon.getType() == Coupon.CouponType.PERCENTAGE) {
+            return coupon.getValue().stripTrailingZeros().toPlainString() + "%";
+        }
+        NumberFormat nf = NumberFormat.getNumberInstance(Locale.forLanguageTag("vi-VN"));
+        return nf.format(coupon.getValue()) + " VND";
     }
 
     private String extractClientIp(HttpServletRequest request) {

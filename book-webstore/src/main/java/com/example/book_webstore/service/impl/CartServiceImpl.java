@@ -10,6 +10,8 @@ import com.example.book_webstore.model.Book;
 import com.example.book_webstore.model.BookImage;
 import com.example.book_webstore.model.Cart;
 import com.example.book_webstore.model.CartItem;
+import com.example.book_webstore.model.Coupon;
+import com.example.book_webstore.model.CouponUsage;
 import com.example.book_webstore.model.CustomerOrder;
 import com.example.book_webstore.model.OrderItem;
 import com.example.book_webstore.model.Payment;
@@ -24,12 +26,14 @@ import com.example.book_webstore.repository.PaymentRepository;
 import com.example.book_webstore.repository.ShippingRepository;
 import com.example.book_webstore.repository.UserRepository;
 import com.example.book_webstore.repository.CouponRepository;
+import com.example.book_webstore.repository.CouponUsageRepository;
 import com.example.book_webstore.service.CartService;
 import com.example.book_webstore.service.payment.strategy.PaymentStrategyResolver;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -54,6 +58,7 @@ public class CartServiceImpl implements CartService {
     private final AddressRepository addressRepository;
     private final PaymentStrategyResolver paymentStrategyResolver;
     private final CouponRepository couponRepository;
+    private final CouponUsageRepository couponUsageRepository;
 
     public CartServiceImpl(CartRepository cartRepository,
             CartItemRepository cartItemRepository,
@@ -64,7 +69,8 @@ public class CartServiceImpl implements CartService {
             UserRepository userRepository,
             AddressRepository addressRepository,
             PaymentStrategyResolver paymentStrategyResolver,
-            CouponRepository couponRepository) {
+            CouponRepository couponRepository,
+            CouponUsageRepository couponUsageRepository) {
         this.cartRepository = cartRepository;
         this.cartItemRepository = cartItemRepository;
         this.bookRepository = bookRepository;
@@ -75,6 +81,7 @@ public class CartServiceImpl implements CartService {
         this.addressRepository = addressRepository;
         this.paymentStrategyResolver = paymentStrategyResolver;
         this.couponRepository = couponRepository;
+        this.couponUsageRepository = couponUsageRepository;
     }
 
     @Override
@@ -143,7 +150,8 @@ public class CartServiceImpl implements CartService {
             String note,
             Payment.PaymentMethod paymentMethod,
             String shippingMethod,
-            String couponCode) {
+            String productCouponCode,
+            String shippingCouponCode) {
 
         // --- 1. Validate và lấy dữ liệu cơ bản (Giữ nguyên) ---
         if (selectedBookIds == null || selectedBookIds.isEmpty())
@@ -151,6 +159,11 @@ public class CartServiceImpl implements CartService {
         User customer = userRepository.findByEmail(customerEmail);
         if (customer == null)
             throw new IllegalArgumentException("Người dùng không tồn tại");
+
+        List<CartItem> selectedItems = filterSelectedItems(cartId, selectedBookIds);
+        if (selectedItems.isEmpty()) {
+            throw new IllegalArgumentException("Không có sản phẩm hợp lệ để checkout");
+        }
 
         // --- 2. Khởi tạo Order (Gán dữ liệu thô) ---
         CustomerOrder order = new CustomerOrder();
@@ -162,51 +175,78 @@ public class CartServiceImpl implements CartService {
         order.setPhoneNumber(normalizePhoneNumber(phoneNumber));
         order.setNote(note);
 
-        // QUAN TRỌNG: Gán Coupon từ mã khách nhập vào để refreshOrderTotal có cái mà
-        // tính
-        if (couponCode != null && !couponCode.isBlank()) {
-            couponRepository.findByCodeIgnoreCase(couponCode.trim())
-                    .ifPresent(order::setCoupon);
-        }
+        Shipping.ShippingMethod selectedShippingMethod = resolveShippingMethod(shippingMethod);
+
+        BigDecimal subtotalAmount = selectedItems.stream()
+                .map(item -> item.getBook().getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal shippingAmount = calculateShippingFeePlaceholder(selectedShippingMethod)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        Coupon productCoupon = resolveCouponByCodeAndTarget(productCouponCode, Coupon.CouponTarget.PRODUCT);
+        BigDecimal productDiscount = calculateProductCouponDiscount(productCoupon, selectedItems, subtotalAmount,
+                customer);
+
+        Coupon shippingCoupon = resolveCouponByCodeAndTarget(shippingCouponCode, Coupon.CouponTarget.SHIPPING);
+        BigDecimal shippingDiscount = calculateShippingCouponDiscount(shippingCoupon, shippingAmount, subtotalAmount,
+                customer);
+
+        order.setCoupon(productCoupon);
+        order.setShippingCoupon(shippingCoupon);
+        order.setDiscountAmount(productDiscount);
+        order.setShippingDiscountAmount(shippingDiscount);
+
         customerOrderRepository.save(order);
 
         // --- 3. Tạo OrderItems và tính Subtotal tạm thời ---
         List<OrderItem> orderItems = new ArrayList<>();
-        BigDecimal subtotalAmount = BigDecimal.ZERO;
-        for (CartItem cartItem : filterSelectedItems(cartId, selectedBookIds)) {
+        for (CartItem cartItem : selectedItems) {
             OrderItem orderItem = new OrderItem();
             orderItem.setOrder(order);
             orderItem.setBook(cartItem.getBook());
             orderItem.setQuantity(cartItem.getQuantity());
             orderItem.setBookTitle(cartItem.getBook().getTitle());
             orderItems.add(orderItem);
-            subtotalAmount = subtotalAmount
-                    .add(cartItem.getBook().getPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity())));
         }
         order.setItems(orderItems);
 
         // --- 4. Khởi tạo Shipping (Gán phương thức khách chọn) ---
         Shipping shipping = new Shipping();
         shipping.setOrder(order);
-        // Chuyển chuỗi "FAST"/"ECONOMY" từ JSP thành Enum
-        shipping.setMethod(Shipping.ShippingMethod.valueOf(shippingMethod.toUpperCase()));
+        shipping.setMethod(selectedShippingMethod);
         shipping.setStatus(Shipping.ShippingStatus.PENDING);
         shipping.setCustomerAddress(order.getAddress());
         shipping.setCustomerName(order.getReceiverName());
         shipping.setCustomerPhone(order.getPhoneNumber());
-        shipping.setCost(BigDecimal.ZERO); // Tạm để 0, tí nữa Strategy sẽ tính lại
+        shipping.setCost(shippingAmount);
         shippingRepository.save(shipping);
         order.setShipping(shipping);
 
         // --- 5. Khởi tạo Payment với giá tạm tính ---
+        BigDecimal paymentAmount = subtotalAmount
+                .subtract(productDiscount)
+                .add(shippingAmount)
+                .subtract(shippingDiscount)
+                .max(BigDecimal.ZERO)
+                .setScale(2, RoundingMode.HALF_UP);
+
         Payment payment = paymentStrategyResolver.resolve(paymentMethod)
-                .createPayment(order, customer, subtotalAmount);
+                .createPayment(order, customer, paymentAmount);
         paymentRepository.save(payment);
         order.setPayment(payment);
 
         // Lưu lại toàn bộ thông tin Order để chờ Refresh
         customerOrderRepository.save(order);
-        cartItemRepository.deleteAll(filterSelectedItems(cartId, selectedBookIds));
+
+        incrementUsageIfPresent(productCoupon, customer);
+        if (shippingCoupon != null
+                && (productCoupon == null || !shippingCoupon.getId().equals(productCoupon.getId()))) {
+            incrementUsageIfPresent(shippingCoupon, customer);
+        }
+
+        cartItemRepository.deleteAll(selectedItems);
 
         return order.getId();
     }
@@ -398,6 +438,140 @@ public class CartServiceImpl implements CartService {
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private Shipping.ShippingMethod resolveShippingMethod(String shippingMethod) {
+        if (isBlank(shippingMethod)) {
+            return Shipping.ShippingMethod.STANDARD;
+        }
+        try {
+            return Shipping.ShippingMethod.valueOf(shippingMethod.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("Phương thức vận chuyển không hợp lệ");
+        }
+    }
+
+    private Coupon resolveCouponByCodeAndTarget(String code, Coupon.CouponTarget target) {
+        if (isBlank(code)) {
+            return null;
+        }
+        Coupon coupon = couponRepository.findByCodeIgnoreCase(code.trim())
+                .orElseThrow(() -> new IllegalArgumentException("Mã coupon không tồn tại: " + code));
+        if (coupon.getTarget() != target) {
+            throw new IllegalArgumentException("Coupon " + coupon.getCode() + " không đúng loại " + target.name());
+        }
+        return coupon;
+    }
+
+    private BigDecimal calculateProductCouponDiscount(Coupon coupon,
+            List<CartItem> selectedItems,
+            BigDecimal subtotal,
+            User customer) {
+        if (coupon == null) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+
+        validateCouponUsage(coupon, customer, subtotal);
+
+        List<CartItem> applicableItems = selectedItems;
+        if (coupon.getApplicableBooks() != null && !coupon.getApplicableBooks().isEmpty()) {
+            Set<Long> applicableBookIds = coupon.getApplicableBooks().stream().map(Book::getId)
+                    .collect(Collectors.toSet());
+            applicableItems = selectedItems.stream()
+                    .filter(item -> item.getBook() != null && applicableBookIds.contains(item.getBook().getId()))
+                    .toList();
+            if (applicableItems.isEmpty()) {
+                throw new IllegalArgumentException(
+                        "Coupon " + coupon.getCode() + " không áp dụng cho sản phẩm đã chọn");
+            }
+        }
+
+        BigDecimal applicableSubtotal = applicableItems.stream()
+                .map(item -> item.getBook().getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal discount = calculateCouponDiscountByType(coupon, applicableSubtotal);
+        return discount.min(applicableSubtotal).min(subtotal).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal calculateShippingCouponDiscount(Coupon coupon,
+            BigDecimal shippingAmount,
+            BigDecimal subtotal,
+            User customer) {
+        if (coupon == null) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+
+        validateCouponUsage(coupon, customer, subtotal);
+        BigDecimal discount = calculateCouponDiscountByType(coupon, shippingAmount);
+        return discount.min(shippingAmount).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal calculateCouponDiscountByType(Coupon coupon, BigDecimal baseAmount) {
+        BigDecimal discount;
+        if (coupon.getType() == Coupon.CouponType.FIXED) {
+            discount = coupon.getValue();
+        } else {
+            discount = baseAmount.multiply(coupon.getValue())
+                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        }
+
+        if (coupon.getMaxDiscountValue() != null && discount.compareTo(coupon.getMaxDiscountValue()) > 0) {
+            discount = coupon.getMaxDiscountValue();
+        }
+
+        return discount;
+    }
+
+    private void validateCouponUsage(Coupon coupon, User customer, BigDecimal subtotal) {
+        if (!coupon.isActive()) {
+            throw new IllegalArgumentException("Coupon " + coupon.getCode() + " đang bị vô hiệu hóa");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        if (coupon.getStartAt() != null && now.isBefore(coupon.getStartAt())) {
+            throw new IllegalArgumentException("Coupon " + coupon.getCode() + " chưa đến thời gian áp dụng");
+        }
+        if (coupon.getEndAt() != null && now.isAfter(coupon.getEndAt())) {
+            throw new IllegalArgumentException("Coupon " + coupon.getCode() + " đã hết hạn");
+        }
+
+        if (coupon.getMinOrderValue() != null && subtotal.compareTo(coupon.getMinOrderValue()) < 0) {
+            throw new IllegalArgumentException("Đơn hàng chưa đủ điều kiện tối thiểu cho coupon " + coupon.getCode());
+        }
+
+        CouponUsage usage = couponUsageRepository.findByCouponIdAndCustomerId(coupon.getId(), customer.getId())
+                .orElse(null);
+        int usedCount = usage != null ? usage.getUsageCount() : 0;
+        if (usedCount >= coupon.getMaxUsePerUser()) {
+            throw new IllegalArgumentException("Bạn đã dùng hết lượt coupon " + coupon.getCode());
+        }
+
+        if (coupon.getTotalUsageLimit() != null) {
+            long totalUsage = couponUsageRepository.sumUsageCountByCouponId(coupon.getId());
+            if (totalUsage >= coupon.getTotalUsageLimit()) {
+                throw new IllegalArgumentException("Coupon " + coupon.getCode() + " đã hết lượt sử dụng");
+            }
+        }
+    }
+
+    private void incrementUsageIfPresent(Coupon coupon, User customer) {
+        if (coupon == null || customer == null) {
+            return;
+        }
+
+        CouponUsage usage = couponUsageRepository.findByCouponIdAndCustomerId(coupon.getId(), customer.getId())
+                .orElseGet(() -> {
+                    CouponUsage created = new CouponUsage();
+                    created.setCoupon(coupon);
+                    created.setCustomer(customer);
+                    created.setUsageCount(0);
+                    return created;
+                });
+
+        usage.setUsageCount(usage.getUsageCount() + 1);
+        couponUsageRepository.save(usage);
     }
 
     private BigDecimal calculateCheckoutTotalPlaceholder(BigDecimal subtotal,

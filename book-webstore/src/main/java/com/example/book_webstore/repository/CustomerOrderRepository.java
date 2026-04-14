@@ -14,76 +14,76 @@ import com.example.book_webstore.model.CustomerOrder;
 
 public interface CustomerOrderRepository extends JpaRepository<CustomerOrder, Long> {
 
-    // 🔥 FULL: items + customer + coupon + payment + shipping
-    @EntityGraph(attributePaths = {"items", "customer", "coupon", "payment", "shipping"})
-    Page<CustomerOrder> findAllBy(Pageable pageable);
+        // 🔥 FULL: items + customer + coupons + payment + shipping
+        @EntityGraph(attributePaths = { "items", "customer", "coupon", "shippingCoupon", "payment", "shipping" })
+        Page<CustomerOrder> findAllBy(Pageable pageable);
 
-    @EntityGraph(attributePaths = {"items", "customer", "coupon", "payment", "shipping"})
-    Page<CustomerOrder> findByStatus(CustomerOrder.OrderStatus status, Pageable pageable);
+        @EntityGraph(attributePaths = { "items", "customer", "coupon", "shippingCoupon", "payment", "shipping" })
+        Page<CustomerOrder> findByStatus(CustomerOrder.OrderStatus status, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"items", "customer", "coupon", "payment", "shipping"})
-    @Query("select o from CustomerOrder o where o.id = :id")
-    Optional<CustomerOrder> findListItemById(Long id);
+        @EntityGraph(attributePaths = { "items", "customer", "coupon", "shippingCoupon", "payment", "shipping" })
+        @Query("select o from CustomerOrder o where o.id = :id")
+        Optional<CustomerOrder> findListItemById(Long id);
 
-    // 🔥 DETAIL: thêm shipper
-    @EntityGraph(attributePaths = {
-            "items", "items.book",
-            "customer", "coupon",
-            "payment",
-            "shipping", "shipping.shipper"
-    })
-    @Query("select o from CustomerOrder o where o.id = :id")
-    Optional<CustomerOrder> findDetailById(Long id);
+        // 🔥 DETAIL: thêm shipper
+        @EntityGraph(attributePaths = {
+                        "items", "items.book",
+                        "customer", "coupon", "shippingCoupon",
+                        "payment",
+                        "shipping", "shipping.shipper"
+        })
+        @Query("select o from CustomerOrder o where o.id = :id")
+        Optional<CustomerOrder> findDetailById(Long id);
 
-    @EntityGraph(attributePaths = {"items", "customer", "coupon", "payment", "shipping"})
-    @Query("""
-            select distinct o
-            from CustomerOrder o
-            left join o.customer c
-            left join o.payment p
-            left join p.user pu
-            where coalesce(c.id, pu.id) = :customerId
-              and (:status is null or o.status = :status)
-            """)
-    Page<CustomerOrder> findCustomerOrders(
-            @Param("customerId") Long customerId,
-            @Param("status") CustomerOrder.OrderStatus status,
-            Pageable pageable);
+        @EntityGraph(attributePaths = { "items", "customer", "coupon", "shippingCoupon", "payment", "shipping" })
+        @Query("""
+                        select distinct o
+                        from CustomerOrder o
+                        left join o.customer c
+                        left join o.payment p
+                        left join p.user pu
+                        where coalesce(c.id, pu.id) = :customerId
+                          and (:status is null or o.status = :status)
+                        """)
+        Page<CustomerOrder> findCustomerOrders(
+                        @Param("customerId") Long customerId,
+                        @Param("status") CustomerOrder.OrderStatus status,
+                        Pageable pageable);
 
-    @EntityGraph(attributePaths = {"items", "customer", "coupon", "payment", "shipping"})
-    @Query("""
-            select o
-            from CustomerOrder o
-            left join o.customer c
-            left join o.payment p
-            left join p.user pu
-            where o.id = :id
-              and coalesce(c.id, pu.id) = :customerId
-            """)
-    Optional<CustomerOrder> findCustomerListItemById(
-            @Param("customerId") Long customerId,
-            @Param("id") Long id);
+        @EntityGraph(attributePaths = { "items", "customer", "coupon", "shippingCoupon", "payment", "shipping" })
+        @Query("""
+                        select o
+                        from CustomerOrder o
+                        left join o.customer c
+                        left join o.payment p
+                        left join p.user pu
+                        where o.id = :id
+                          and coalesce(c.id, pu.id) = :customerId
+                        """)
+        Optional<CustomerOrder> findCustomerListItemById(
+                        @Param("customerId") Long customerId,
+                        @Param("id") Long id);
 
-    @EntityGraph(attributePaths = {
-            "items", "items.book",
-            "customer", "coupon",
-            "payment",
-            "shipping", "shipping.shipper"
-    })
-    @Query("""
-            select o
-            from CustomerOrder o
-            left join o.customer c
-            left join o.payment p
-            left join p.user pu
-            where o.id = :id
-              and coalesce(c.id, pu.id) = :customerId
-            """)
-    Optional<CustomerOrder> findCustomerDetailById(
-            @Param("customerId") Long customerId,
-            @Param("id") Long id);
+        @EntityGraph(attributePaths = {
+                        "items", "items.book",
+                        "customer", "coupon", "shippingCoupon",
+                        "payment",
+                        "shipping", "shipping.shipper"
+        })
+        @Query("""
+                        select o
+                        from CustomerOrder o
+                        left join o.customer c
+                        left join o.payment p
+                        left join p.user pu
+                        where o.id = :id
+                          and coalesce(c.id, pu.id) = :customerId
+                        """)
+        Optional<CustomerOrder> findCustomerDetailById(
+                        @Param("customerId") Long customerId,
+                        @Param("id") Long id);
 
-    // 🔥 GIỮ từ Shipping branch (rất quan trọng)
-    @EntityGraph(attributePaths = {"customer", "payment"})
-    List<CustomerOrder> findByStatusAndShippingIsNull(CustomerOrder.OrderStatus status);
+        // 🔥 GIỮ từ Shipping branch (rất quan trọng)
+        @EntityGraph(attributePaths = { "customer", "payment" })
+        List<CustomerOrder> findByStatusAndShippingIsNull(CustomerOrder.OrderStatus status);
 }

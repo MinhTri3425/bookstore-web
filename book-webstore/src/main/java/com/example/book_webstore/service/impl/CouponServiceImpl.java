@@ -139,6 +139,9 @@ public class CouponServiceImpl implements CouponService {
 
         User customer = requireCustomer(customerEmail);
         Coupon coupon = findCouponByCode(code);
+        if (coupon.getTarget() != Coupon.CouponTarget.PRODUCT) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Coupon target is not PRODUCT");
+        }
         List<CartItem> cartItems = cartItemRepository.findByCartId(cartId);
         if (cartItems.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cart is empty");
@@ -164,6 +167,9 @@ public class CouponServiceImpl implements CouponService {
         }
 
         Coupon coupon = findCouponByCode(code);
+        if (coupon.getTarget() != Coupon.CouponTarget.PRODUCT) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Coupon target is not PRODUCT");
+        }
         CouponCalculation calculation = evaluateCoupon(coupon, customer, toBookQuantityLinesFromOrder(order));
 
         order.setCoupon(coupon);
@@ -228,8 +234,15 @@ public class CouponServiceImpl implements CouponService {
         if (couponDTO.getType() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Coupon type is required");
         }
+        if (couponDTO.getTarget() == null) {
+            couponDTO.setTarget(Coupon.CouponTarget.PRODUCT);
+        }
         if (couponDTO.getValue() == null || couponDTO.getValue().compareTo(BigDecimal.ZERO) <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Coupon value must be greater than zero");
+        }
+        if (couponDTO.getType() == Coupon.CouponType.PERCENTAGE
+                && couponDTO.getValue().compareTo(BigDecimal.valueOf(100)) > 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Percentage coupon cannot exceed 100%");
         }
         if (couponDTO.getMaxUsePerUser() < 1) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Max use per user must be at least 1");
@@ -244,9 +257,15 @@ public class CouponServiceImpl implements CouponService {
         if (couponDTO.getMinOrderValue() != null && couponDTO.getMinOrderValue().compareTo(BigDecimal.ZERO) < 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Minimum order value cannot be negative");
         }
-        if (couponDTO.getMaxDiscountValue() != null
+        if (couponDTO.getType() == Coupon.CouponType.PERCENTAGE
+                && couponDTO.getMaxDiscountValue() != null
                 && couponDTO.getMaxDiscountValue().compareTo(BigDecimal.ZERO) <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Maximum discount must be greater than zero");
+        }
+        if (couponDTO.getTarget() == Coupon.CouponTarget.SHIPPING
+                && couponDTO.getApplicableBookIds() != null
+                && !couponDTO.getApplicableBookIds().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Shipping coupon cannot be assigned to books");
         }
 
         if (currentCouponId != null || hasText(couponDTO.getCode())) {
@@ -263,23 +282,29 @@ public class CouponServiceImpl implements CouponService {
     private void applyCouponChanges(Coupon coupon, CouponDTO couponDTO) {
         coupon.setCode(resolveCouponCode(coupon, couponDTO));
         coupon.setType(couponDTO.getType());
+        coupon.setTarget(couponDTO.getTarget() == null ? Coupon.CouponTarget.PRODUCT : couponDTO.getTarget());
         coupon.setValue(couponDTO.getValue().setScale(2, RoundingMode.HALF_UP));
         coupon.setActive(couponDTO.isActive());
         coupon.setMaxUsePerUser(couponDTO.getMaxUsePerUser());
         coupon.setTotalUsageLimit(couponDTO.getTotalUsageLimit());
         coupon.setMinOrderValue(scaleOrNull(couponDTO.getMinOrderValue()));
-        coupon.setMaxDiscountValue(scaleOrNull(couponDTO.getMaxDiscountValue()));
+        if (couponDTO.getType() == Coupon.CouponType.FIXED) {
+            coupon.setMaxDiscountValue(null);
+        } else {
+            coupon.setMaxDiscountValue(scaleOrNull(couponDTO.getMaxDiscountValue()));
+        }
         coupon.setStartAt(couponDTO.getStartAt());
         coupon.setEndAt(couponDTO.getEndAt());
 
-        List<Book> applicableBooks = couponDTO.getApplicableBookIds() == null
-                ? Collections.emptyList()
-                : couponDTO.getApplicableBookIds().stream()
-                        .distinct()
-                        .map(bookId -> bookRepository.findById(bookId)
-                                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                                        "Book not found: " + bookId)))
-                        .toList();
+        List<Book> applicableBooks = (coupon.getTarget() == Coupon.CouponTarget.SHIPPING
+                || couponDTO.getApplicableBookIds() == null)
+                        ? Collections.emptyList()
+                        : couponDTO.getApplicableBookIds().stream()
+                                .distinct()
+                                .map(bookId -> bookRepository.findById(bookId)
+                                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                                                "Book not found: " + bookId)))
+                                .toList();
         coupon.setApplicableBooks(applicableBooks);
     }
 
@@ -458,6 +483,7 @@ public class CouponServiceImpl implements CouponService {
                 coupon.getId(),
                 coupon.getCode(),
                 coupon.getType(),
+                coupon.getTarget(),
                 coupon.getValue(),
                 coupon.isActive(),
                 coupon.getMaxUsePerUser(),
