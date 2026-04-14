@@ -142,7 +142,7 @@ public class OrderController {
     public String cancelCustomerOrder(@PathVariable Long id, Principal principal, RedirectAttributes ra) {
         Long customerId = requireCurrentUser(principal).getId();
         orderService.cancelCustomerOrder(customerId, id);
-        ra.addFlashAttribute("successMessage", "Đã hủy đơn hàng.");
+        ra.addFlashAttribute("successMessage", "Đã gửi yêu cầu hủy đơn. Vui lòng chờ admin duyệt.");
         return "redirect:/my-orders/" + id;
     }
 

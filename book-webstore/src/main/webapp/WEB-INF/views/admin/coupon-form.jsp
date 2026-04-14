@@ -120,20 +120,33 @@
                             <div class="col-12" id="applicableBooksWrap">
                                 <label class="form-label fw-bold small text-muted">Sách được áp dụng (Chọn
                                     nhiều)</label>
-                                <select class="form-select" name="applicableBookIds" multiple size="8">
-                                    <c:forEach var="book" items="${books}">
-                                        <c:set var="isSelected" value="false" />
-                                        <c:forEach var="selectedId" items="${coupon.applicableBookIds}">
-                                            <c:if test="${selectedId == book.id}">
-                                                <c:set var="isSelected" value="true" />
-                                            </c:if>
+                                <div class="border rounded p-3 bg-light-subtle">
+                                    <div class="form-check mb-2 border-bottom pb-2">
+                                        <input class="form-check-input" type="checkbox" id="selectAllApplicableBooks">
+                                        <label class="form-check-label fw-bold" for="selectAllApplicableBooks">Chọn tất
+                                            cả sách</label>
+                                    </div>
+
+                                    <div class="overflow-auto" style="max-height: 260px;">
+                                        <c:forEach var="book" items="${books}">
+                                            <c:set var="isSelected" value="false" />
+                                            <c:forEach var="selectedId" items="${coupon.applicableBookIds}">
+                                                <c:if test="${selectedId == book.id}">
+                                                    <c:set var="isSelected" value="true" />
+                                                </c:if>
+                                            </c:forEach>
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input applicable-book-checkbox" type="checkbox"
+                                                    id="book-${book.id}" name="applicableBookIds" value="${book.id}"
+                                                    ${isSelected ? 'checked' : '' }>
+                                                <label class="form-check-label" for="book-${book.id}">${book.title} (ID:
+                                                    ${book.id})</label>
+                                            </div>
                                         </c:forEach>
-                                        <option value="${book.id}" ${isSelected ? 'selected' : '' }>${book.title} (ID:
-                                            ${book.id})</option>
-                                    </c:forEach>
-                                </select>
-                                <div class="form-text text-info"><i class="fas fa-info-circle me-1"></i> Giữ phím Ctrl
-                                    (hoặc Cmd) để chọn nhiều sách. Để trống nếu áp dụng cho toàn bộ cửa hàng.</div>
+                                    </div>
+                                </div>
+                                <div class="form-text text-info"><i class="fas fa-info-circle me-1"></i> Để trống nếu áp
+                                    dụng cho toàn bộ cửa hàng.</div>
                             </div>
 
                             <div class="col-12 d-flex gap-2 pt-3 border-top mt-4">
@@ -158,7 +171,18 @@
                     const unitText = document.getElementById('valueUnitText');
                     const maxDiscountWrap = document.getElementById('maxDiscountWrap');
                     const applicableBooksWrap = document.getElementById('applicableBooksWrap');
-                    const applicableBookSelect = applicableBooksWrap.querySelector('select[name="applicableBookIds"]');
+                    const selectAllApplicableBooks = document.getElementById('selectAllApplicableBooks');
+                    const applicableBookCheckboxes = Array.from(document.querySelectorAll('.applicable-book-checkbox'));
+
+                    function syncSelectAllState() {
+                        if (!selectAllApplicableBooks || applicableBookCheckboxes.length === 0) {
+                            return;
+                        }
+
+                        const checkedCount = applicableBookCheckboxes.filter(item => item.checked).length;
+                        selectAllApplicableBooks.checked = checkedCount > 0 && checkedCount === applicableBookCheckboxes.length;
+                        selectAllApplicableBooks.indeterminate = checkedCount > 0 && checkedCount < applicableBookCheckboxes.length;
+                    }
 
                     function applyFormRules() {
                         const isPercentage = discountType.value === 'PERCENTAGE';
@@ -176,14 +200,35 @@
 
                         applicableBooksWrap.style.display = isShippingTarget ? 'none' : '';
                         if (isShippingTarget) {
-                            Array.from(applicableBookSelect.options).forEach(option => {
-                                option.selected = false;
+                            applicableBookCheckboxes.forEach(item => {
+                                item.checked = false;
                             });
+                            if (selectAllApplicableBooks) {
+                                selectAllApplicableBooks.checked = false;
+                                selectAllApplicableBooks.indeterminate = false;
+                            }
                         }
+
+                        syncSelectAllState();
                     }
 
                     discountType.addEventListener('change', applyFormRules);
                     couponTarget.addEventListener('change', applyFormRules);
+
+                    if (selectAllApplicableBooks) {
+                        selectAllApplicableBooks.addEventListener('change', function () {
+                            const checked = this.checked;
+                            applicableBookCheckboxes.forEach(item => {
+                                item.checked = checked;
+                            });
+                            syncSelectAllState();
+                        });
+                    }
+
+                    applicableBookCheckboxes.forEach(item => {
+                        item.addEventListener('change', syncSelectAllState);
+                    });
+
                     applyFormRules();
                 })();
             </script>

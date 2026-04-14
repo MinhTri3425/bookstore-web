@@ -116,18 +116,16 @@
                                                                         <i class="fas fa-eye me-1"></i>Xem
                                                                     </a>
                                                                     <c:if test="${order.canCancel}">
-                                                                        <form method="post"
-                                                                            action="${pageContext.request.contextPath}/my-orders/${order.id}/cancel"
-                                                                            onsubmit="return confirm('Bạn có chắc chắn muốn hủy đơn hàng này?');">
-                                                                            <input type="hidden"
-                                                                                name="${_csrf.parameterName}"
-                                                                                value="${_csrf.token}" />
-                                                                            <button
-                                                                                class="btn btn-outline-danger btn-sm"
-                                                                                type="submit">
-                                                                                <i class="fas fa-times me-1"></i>Hủy
-                                                                            </button>
-                                                                        </form>
+                                                                        <button class="btn btn-outline-danger btn-sm"
+                                                                            type="button" data-bs-toggle="modal"
+                                                                            data-bs-target="#cancelOrderModal"
+                                                                            data-order-id="${order.id}">
+                                                                            <i class="fas fa-times me-1"></i>Hủy
+                                                                        </button>
+                                                                    </c:if>
+                                                                    <c:if test="${order.status == 'CANCEL_REQUESTED'}">
+                                                                        <span class="badge bg-warning text-dark">Chờ
+                                                                            duyệt hủy</span>
                                                                     </c:if>
                                                                 </div>
                                                             </td>
@@ -203,8 +201,50 @@
                     </div>
                 </div>
 
+                <div class="modal fade" id="cancelOrderModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content border-0 shadow">
+                            <div class="modal-header">
+                                <h5 class="modal-title"><i class="fas fa-exclamation-triangle text-danger me-2"></i>Xác
+                                    nhận hủy đơn</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                Bạn có chắc chắn muốn gửi yêu cầu hủy đơn hàng
+                                <strong id="cancelOrderNumber"></strong>?
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-secondary"
+                                    data-bs-dismiss="modal">Đóng</button>
+                                <form method="post" id="cancelOrderForm" class="d-inline">
+                                    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+                                    <button class="btn btn-danger" type="submit">Xác nhận gửi yêu cầu</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <%@ include file="/WEB-INF/views/fragments/footer.jsp" %>
                     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+                    <script>
+                        (function () {
+                            const cancelForm = document.getElementById('cancelOrderForm');
+                            const cancelOrderNumber = document.getElementById('cancelOrderNumber');
+                            if (!cancelForm || !cancelOrderNumber) {
+                                return;
+                            }
+
+                            document.querySelectorAll('[data-order-id]').forEach(function (button) {
+                                button.addEventListener('click', function () {
+                                    const orderId = this.getAttribute('data-order-id') || '';
+                                    cancelOrderNumber.textContent = '#' + orderId;
+                                    cancelForm.action = '${pageContext.request.contextPath}/my-orders/' + orderId + '/cancel';
+                                });
+                            });
+                        })();
+                    </script>
         </body>
 
         </html>

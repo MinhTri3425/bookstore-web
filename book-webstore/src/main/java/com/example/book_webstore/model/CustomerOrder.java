@@ -24,7 +24,7 @@ public class CustomerOrder {
     private LocalDateTime createdAt;
 
     public static enum OrderStatus {
-        PENDING, CONFIRMED, COMPLETED, CANCELLED
+        PENDING, CANCEL_REQUESTED, CONFIRMED, COMPLETED, CANCELLED
     }
 
     @Enumerated(EnumType.STRING)

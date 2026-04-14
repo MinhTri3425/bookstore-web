@@ -1,5 +1,7 @@
 package com.example.book_webstore.controller;
 
+import java.time.LocalDateTime;
+
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.server.ResponseStatusException;
@@ -30,6 +32,7 @@ public class AdminCouponController {
     @GetMapping
     public String listCoupons(Model model) {
         model.addAttribute("coupons", couponService.getAllCoupons());
+        model.addAttribute("currentTime", LocalDateTime.now());
         return "admin/coupons";
     }
 

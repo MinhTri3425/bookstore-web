@@ -467,6 +467,12 @@ body {
     border: 1px solid #ffe69c;
 }
 
+.status-cancel-requested {
+    background-color: #fff4cc !important;
+    color: #8a6d00 !important;
+    border: 1px solid #ffe58a;
+}
+
 .status-confirmed {
     background-color: #d1ecf1 !important;
     color: #0c5460 !important;

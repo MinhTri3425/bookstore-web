@@ -51,6 +51,8 @@
                                 <c:choose>
                                     <c:when test="${not empty coupons}">
                                         <c:forEach var="coupon" items="${coupons}">
+                                            <c:set var="isExpired"
+                                                value="${not empty coupon.endAt and coupon.endAt lt currentTime}" />
                                             <tr>
                                                 <td class="px-4">
                                                     <div class="fw-bold text-primary">${coupon.code}</div>
@@ -97,10 +99,23 @@
                                                     <div>Giới hạn/User: <strong>${coupon.maxUsePerUser}</strong></div>
                                                 </td>
                                                 <td>
-                                                    <span
-                                                        class="badge rounded-pill ${coupon.active ? 'bg-success' : 'bg-secondary'}">
-                                                        ${coupon.active ? 'Đang hoạt động' : 'Đang tắt'}
-                                                    </span>
+                                                    <c:choose>
+                                                        <c:when test="${isExpired}">
+                                                            <span class="badge rounded-pill bg-danger">
+                                                                Không còn khả dụng
+                                                            </span>
+                                                        </c:when>
+                                                        <c:when test="${coupon.active}">
+                                                            <span class="badge rounded-pill bg-success">
+                                                                Đang hoạt động
+                                                            </span>
+                                                        </c:when>
+                                                        <c:otherwise>
+                                                            <span class="badge rounded-pill bg-secondary">
+                                                                Đang tắt
+                                                            </span>
+                                                        </c:otherwise>
+                                                    </c:choose>
                                                 </td>
                                                 <td class="text-center">
                                                     <div class="btn-group btn-group-sm shadow-sm">

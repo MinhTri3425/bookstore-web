@@ -27,6 +27,8 @@
     /* Status Colors (For Orders module) */
     --pending-bg: #fff7ed;
     --pending-text: #b45309;
+    --cancel-requested-bg: #fffbeb;
+    --cancel-requested-text: #b45309;
     --confirmed-bg: #eff6ff;
     --confirmed-text: #1d4ed8;
     --completed-bg: #ecfdf3;
@@ -200,6 +202,7 @@ button, .btn, a {
 }
 
 .status-pending   { background: var(--pending-bg); color: var(--pending-text); }
+.status-cancel-requested { background: var(--cancel-requested-bg); color: var(--cancel-requested-text); }
 .status-confirmed { background: var(--confirmed-bg); color: var(--confirmed-text); }
 .status-completed { background: var(--completed-bg); color: var(--completed-text); }
 .status-cancelled { background: var(--cancelled-bg); color: var(--cancelled-text); }

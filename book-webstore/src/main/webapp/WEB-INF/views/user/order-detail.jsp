@@ -123,22 +123,49 @@
                                 <div class="card-body">
                                     <c:choose>
                                         <c:when test="${order.canCancel}">
-                                            <form method="post"
-                                                action="${pageContext.request.contextPath}/my-orders/${order.id}/cancel">
-                                                <input type="hidden" name="${_csrf.parameterName}"
-                                                    value="${_csrf.token}" />
-                                                <button class="btn btn-danger" type="submit">
-                                                    <i class="fas fa-times me-2"></i>Hủy đơn hàng
-                                                </button>
-                                            </form>
+                                            <button class="btn btn-danger" type="button" data-bs-toggle="modal"
+                                                data-bs-target="#cancelOrderModal">
+                                                <i class="fas fa-times me-2"></i>Hủy đơn hàng
+                                            </button>
                                             <div class="form-text mt-2">Bạn chỉ có thể hủy đơn khi đơn còn ở trạng thái
                                                 PENDING.</div>
+                                        </c:when>
+                                        <c:when test="${order.status == 'CANCEL_REQUESTED'}">
+                                            <div class="alert alert-warning mb-0">
+                                                Yêu cầu hủy đơn đã được gửi. Vui lòng chờ admin duyệt.
+                                            </div>
                                         </c:when>
                                         <c:otherwise>
                                             <div class="text-muted">Đơn hàng này hiện không thể hủy nữa.</div>
                                         </c:otherwise>
                                     </c:choose>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal fade" id="cancelOrderModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content border-0 shadow">
+                            <div class="modal-header">
+                                <h5 class="modal-title"><i class="fas fa-exclamation-triangle text-danger me-2"></i>Xác
+                                    nhận hủy đơn</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                Bạn có chắc chắn muốn gửi yêu cầu hủy đơn hàng #${order.id}?
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-secondary"
+                                    data-bs-dismiss="modal">Đóng</button>
+                                <form method="post"
+                                    action="${pageContext.request.contextPath}/my-orders/${order.id}/cancel"
+                                    class="d-inline">
+                                    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+                                    <button class="btn btn-danger" type="submit">Xác nhận gửi yêu cầu</button>
+                                </form>
                             </div>
                         </div>
                     </div>

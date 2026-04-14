@@ -156,15 +156,10 @@ public class OrderServiceImpl implements OrderService {
 
         if (order.getStatus() != CustomerOrder.OrderStatus.PENDING) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Chỉ đơn hàng đang chờ duyệt mới có thể hủy");
+                    "Chỉ đơn hàng đang chờ duyệt mới có thể gửi yêu cầu hủy");
         }
 
-        attachCustomerFromPaymentIfMissing(order);
-
-        order.setStatus(CustomerOrder.OrderStatus.CANCELLED);
-
-        restoreCouponUsage(order);
-        shippingService.handleOrderCancelled(id);
+        order.setStatus(CustomerOrder.OrderStatus.CANCEL_REQUESTED);
 
         customerOrderRepository.save(order);
     }
@@ -368,6 +363,7 @@ public class OrderServiceImpl implements OrderService {
         dto.setCanConfirm(order.getStatus() == CustomerOrder.OrderStatus.PENDING);
         dto.setCanComplete(order.getStatus() == CustomerOrder.OrderStatus.CONFIRMED);
         dto.setCanAdminCancel(order.getStatus() == CustomerOrder.OrderStatus.PENDING
+                || order.getStatus() == CustomerOrder.OrderStatus.CANCEL_REQUESTED
                 || order.getStatus() == CustomerOrder.OrderStatus.CONFIRMED);
 
         dto.setItems(includeItems
@@ -510,6 +506,10 @@ public class OrderServiceImpl implements OrderService {
 
         return switch (current) {
             case PENDING -> target == CustomerOrder.OrderStatus.CONFIRMED
+                    || target == CustomerOrder.OrderStatus.CANCEL_REQUESTED
+                    || target == CustomerOrder.OrderStatus.CANCELLED;
+            case CANCEL_REQUESTED -> target == CustomerOrder.OrderStatus.PENDING
+                    || target == CustomerOrder.OrderStatus.CONFIRMED
                     || target == CustomerOrder.OrderStatus.CANCELLED;
             case CONFIRMED -> target == CustomerOrder.OrderStatus.COMPLETED
                     || target == CustomerOrder.OrderStatus.CANCELLED;
@@ -535,6 +535,7 @@ public class OrderServiceImpl implements OrderService {
 
         return switch (status) {
             case PENDING -> "status-pending";
+            case CANCEL_REQUESTED -> "status-cancel-requested";
             case CONFIRMED -> "status-confirmed";
             case COMPLETED -> "status-completed";
             case CANCELLED -> "status-cancelled";

@@ -214,41 +214,68 @@
                                                         <c:choose>
                                                             <%-- CHỈ HIỂN THỊ NÚT XÁC NHẬN KHI ĐƠN LÀ PENDING --%>
                                                                 <c:when test="${order.status == 'PENDING'}">
-                                                                    <form method="post"
-                                                                        action="${pageContext.request.contextPath}/admin/orders/${order.id}/status">
-                                                                        <input type="hidden"
-                                                                            name="${_csrf.parameterName}"
-                                                                            value="${_csrf.token}" />
-                                                                        <input type="hidden" name="status"
-                                                                            value="CONFIRMED" />
+                                                                    <p class="small text-muted mb-3 italic">
+                                                                        Xác nhận đơn hàng để hệ thống tự động trừ
+                                                                        kho và gán Shipper giao hàng.
+                                                                    </p>
 
-                                                                        <p class="small text-muted mb-3 italic">
-                                                                            Xác nhận đơn hàng để hệ thống tự động trừ
-                                                                            kho và gán Shipper giao hàng.
-                                                                        </p>
+                                                                    <button
+                                                                        class="btn btn-primary w-100 fw-bold py-2 mb-2 btn-order-action"
+                                                                        type="button" data-bs-toggle="modal"
+                                                                        data-bs-target="#orderActionModal"
+                                                                        data-status="CONFIRMED"
+                                                                        data-title="Xác nhận đơn hàng"
+                                                                        data-message="Bạn có chắc chắn muốn xác nhận đơn hàng #${order.id}?"
+                                                                        data-confirm-label="Xác nhận đơn"
+                                                                        data-confirm-class="btn-primary">
+                                                                        <i class="fas fa-check-circle me-1"></i> XÁC
+                                                                        NHẬN ĐƠN HÀNG
+                                                                    </button>
 
-                                                                        <button
-                                                                            class="btn btn-primary w-100 fw-bold py-2 mb-2"
-                                                                            type="submit">
-                                                                            <i class="fas fa-check-circle me-1"></i> XÁC
-                                                                            NHẬN ĐƠN HÀNG
-                                                                        </button>
-                                                                    </form>
+                                                                    <button
+                                                                        class="btn btn-outline-danger w-100 btn-sm btn-order-action"
+                                                                        type="button" data-bs-toggle="modal"
+                                                                        data-bs-target="#orderActionModal"
+                                                                        data-status="CANCELLED"
+                                                                        data-title="Xác nhận hủy đơn"
+                                                                        data-message="Bạn có chắc chắn muốn hủy đơn hàng #${order.id}?"
+                                                                        data-confirm-label="Duyệt hủy"
+                                                                        data-confirm-class="btn-danger">
+                                                                        Hủy đơn
+                                                                    </button>
+                                                                </c:when>
 
-                                                                    <form method="post"
-                                                                        action="${pageContext.request.contextPath}/admin/orders/${order.id}/status">
-                                                                        <input type="hidden"
-                                                                            name="${_csrf.parameterName}"
-                                                                            value="${_csrf.token}" />
-                                                                        <input type="hidden" name="status"
-                                                                            value="CANCELLED" />
-                                                                        <button
-                                                                            class="btn btn-outline-danger w-100 btn-sm"
-                                                                            type="submit"
-                                                                            onclick="return confirm('Bạn có chắc chắn muốn hủy đơn hàng này?')">
-                                                                            Hủy đơn
-                                                                        </button>
-                                                                    </form>
+                                                                <c:when test="${order.status == 'CANCEL_REQUESTED'}">
+                                                                    <div
+                                                                        class="alert alert-warning border-0 bg-warning bg-opacity-10 text-dark small">
+                                                                        Khách hàng đã gửi yêu cầu hủy đơn. Vui lòng
+                                                                        duyệt.
+                                                                    </div>
+
+                                                                    <button
+                                                                        class="btn btn-danger w-100 fw-bold py-2 mb-2 btn-order-action"
+                                                                        type="button" data-bs-toggle="modal"
+                                                                        data-bs-target="#orderActionModal"
+                                                                        data-status="CANCELLED"
+                                                                        data-title="Duyệt hủy đơn"
+                                                                        data-message="Xác nhận duyệt hủy đơn hàng #${order.id}?"
+                                                                        data-confirm-label="Duyệt hủy đơn"
+                                                                        data-confirm-class="btn-danger">
+                                                                        <i class="fas fa-check me-1"></i> DUYỆT HỦY
+                                                                        ĐƠN
+                                                                    </button>
+
+                                                                    <button
+                                                                        class="btn btn-outline-secondary w-100 btn-sm btn-order-action"
+                                                                        type="button" data-bs-toggle="modal"
+                                                                        data-bs-target="#orderActionModal"
+                                                                        data-status="PENDING"
+                                                                        data-title="Từ chối yêu cầu hủy"
+                                                                        data-message="Bạn có chắc chắn muốn từ chối yêu cầu hủy của đơn hàng #${order.id}?"
+                                                                        data-confirm-label="Từ chối yêu cầu"
+                                                                        data-confirm-class="btn-outline-secondary">
+                                                                        Từ chối yêu cầu hủy
+                                                                    </button>
                                                                 </c:when>
 
                                                                 <%-- TRẠNG THÁI ĐÃ XỬ LÝ --%>
@@ -283,4 +310,57 @@
                         </div>
             </div>
 
+            <div class="modal fade" id="orderActionModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content border-0 shadow">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="orderActionTitle">Xác nhận thao tác</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body" id="orderActionMessage">
+                            Bạn có chắc chắn muốn thực hiện thao tác này?
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary"
+                                data-bs-dismiss="modal">Đóng</button>
+                            <form method="post"
+                                action="${pageContext.request.contextPath}/admin/orders/${order.id}/status"
+                                id="orderActionForm" class="d-inline">
+                                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+                                <input type="hidden" name="status" id="orderActionStatus" value="" />
+                                <button type="submit" id="orderActionSubmit" class="btn btn-primary">Xác nhận</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <jsp:include page="/WEB-INF/views/fragments/footer.jsp" />
+            <script>
+                (function () {
+                    const statusInput = document.getElementById('orderActionStatus');
+                    const titleEl = document.getElementById('orderActionTitle');
+                    const messageEl = document.getElementById('orderActionMessage');
+                    const submitBtn = document.getElementById('orderActionSubmit');
+
+                    if (!statusInput || !titleEl || !messageEl || !submitBtn) {
+                        return;
+                    }
+
+                    document.querySelectorAll('.btn-order-action').forEach(function (button) {
+                        button.addEventListener('click', function () {
+                            const status = this.getAttribute('data-status') || '';
+                            const title = this.getAttribute('data-title') || 'Xác nhận thao tác';
+                            const message = this.getAttribute('data-message') || 'Bạn có chắc chắn muốn thực hiện thao tác này?';
+                            const confirmLabel = this.getAttribute('data-confirm-label') || 'Xác nhận';
+                            const confirmClass = this.getAttribute('data-confirm-class') || 'btn-primary';
+
+                            statusInput.value = status;
+                            titleEl.textContent = title;
+                            messageEl.textContent = message;
+                            submitBtn.textContent = confirmLabel;
+                            submitBtn.className = 'btn ' + confirmClass;
+                        });
+                    });
+                })();
+            </script>
