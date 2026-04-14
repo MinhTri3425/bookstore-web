@@ -34,6 +34,7 @@ import com.example.book_webstore.repository.CustomerOrderRepository;
 import com.example.book_webstore.repository.PaymentRepository;
 import com.example.book_webstore.repository.UserRepository;
 import com.example.book_webstore.service.CouponService;
+import com.example.book_webstore.service.strategy.coupon.CouponCalculationStrategy;
 import com.example.book_webstore.service.strategy.coupon.CouponStrategyFactory;
 
 @Service
@@ -326,12 +327,8 @@ public class CouponServiceImpl implements CouponService {
         }
 
         BigDecimal applicableSubtotal = calculateSubtotal(applicableLines);
-        BigDecimal discountAmount = switch (coupon.getType()) {
-            case FIXED -> coupon.getValue();
-            case PERCENTAGE -> applicableSubtotal
-                    .multiply(coupon.getValue())
-                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-        };
+        CouponCalculationStrategy strategy = couponStrategyFactory.getStrategy(coupon.getType());
+        BigDecimal discountAmount = strategy.calculateDiscount(coupon, applicableSubtotal);
 
         if (coupon.getMaxDiscountValue() != null && discountAmount.compareTo(coupon.getMaxDiscountValue()) > 0) {
             discountAmount = coupon.getMaxDiscountValue();

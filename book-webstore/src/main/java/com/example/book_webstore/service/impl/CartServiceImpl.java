@@ -29,6 +29,8 @@ import com.example.book_webstore.repository.CouponRepository;
 import com.example.book_webstore.repository.CouponUsageRepository;
 import com.example.book_webstore.service.CartService;
 import com.example.book_webstore.service.payment.strategy.PaymentStrategyResolver;
+import com.example.book_webstore.service.strategy.coupon.CouponCalculationStrategy;
+import com.example.book_webstore.service.strategy.coupon.CouponStrategyFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,6 +61,7 @@ public class CartServiceImpl implements CartService {
     private final PaymentStrategyResolver paymentStrategyResolver;
     private final CouponRepository couponRepository;
     private final CouponUsageRepository couponUsageRepository;
+    private final CouponStrategyFactory couponStrategyFactory;
 
     public CartServiceImpl(CartRepository cartRepository,
             CartItemRepository cartItemRepository,
@@ -70,7 +73,8 @@ public class CartServiceImpl implements CartService {
             AddressRepository addressRepository,
             PaymentStrategyResolver paymentStrategyResolver,
             CouponRepository couponRepository,
-            CouponUsageRepository couponUsageRepository) {
+            CouponUsageRepository couponUsageRepository,
+            CouponStrategyFactory couponStrategyFactory) {
         this.cartRepository = cartRepository;
         this.cartItemRepository = cartItemRepository;
         this.bookRepository = bookRepository;
@@ -82,6 +86,7 @@ public class CartServiceImpl implements CartService {
         this.paymentStrategyResolver = paymentStrategyResolver;
         this.couponRepository = couponRepository;
         this.couponUsageRepository = couponUsageRepository;
+        this.couponStrategyFactory = couponStrategyFactory;
     }
 
     @Override
@@ -509,13 +514,8 @@ public class CartServiceImpl implements CartService {
     }
 
     private BigDecimal calculateCouponDiscountByType(Coupon coupon, BigDecimal baseAmount) {
-        BigDecimal discount;
-        if (coupon.getType() == Coupon.CouponType.FIXED) {
-            discount = coupon.getValue();
-        } else {
-            discount = baseAmount.multiply(coupon.getValue())
-                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-        }
+        CouponCalculationStrategy strategy = couponStrategyFactory.getStrategy(coupon.getType());
+        BigDecimal discount = strategy.calculateDiscount(coupon, baseAmount);
 
         if (coupon.getMaxDiscountValue() != null && discount.compareTo(coupon.getMaxDiscountValue()) > 0) {
             discount = coupon.getMaxDiscountValue();
