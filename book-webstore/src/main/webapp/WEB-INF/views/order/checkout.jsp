@@ -162,7 +162,8 @@
                                                                 ${selectedProductCouponCode==coupon.code ? 'selected'
                                                                 : '' } ${coupon.eligible ? '' : 'disabled' }>
                                                                 ${coupon.code} - ${coupon.valueDisplay}${coupon.eligible
-                                                                ? '' : ' (Không khả dụng)'}
+                                                                ? '' : ' ('}${coupon.eligible ? '' :
+                                                                coupon.reason}${coupon.eligible ? '' : ')'}
                                                             </option>
                                                         </c:forEach>
                                                     </select>
@@ -188,7 +189,8 @@
                                                                 ${selectedShippingCouponCode==coupon.code ? 'selected'
                                                                 : '' } ${coupon.eligible ? '' : 'disabled' }>
                                                                 ${coupon.code} - ${coupon.valueDisplay}${coupon.eligible
-                                                                ? '' : ' (Không khả dụng)'}
+                                                                ? '' : ' ('}${coupon.eligible ? '' :
+                                                                coupon.reason}${coupon.eligible ? '' : ')'}
                                                             </option>
                                                         </c:forEach>
                                                     </select>
@@ -361,22 +363,35 @@
 
                                 function refreshCouponSelectOptions(selectElement, coupons, selectedTextElement, label) {
                                     const current = (selectElement.value || '').trim().toUpperCase();
-                                    const availableCoupons = (coupons || []).filter(c => c && c.eligible);
                                     const optionsHtml = ['<option value="">-- Không áp dụng coupon ' + label + ' --</option>'];
 
-                                    availableCoupons.forEach(coupon => {
+                                    const allCoupons = (coupons || []).filter(c => c && c.code);
+
+                                    allCoupons.forEach(coupon => {
                                         const code = String(coupon.code || '').trim();
                                         if (!code) {
                                             return;
                                         }
                                         const valueDisplay = String(coupon.valueDisplay || '');
-                                        const isSelected = current && code.toUpperCase() === current;
-                                        optionsHtml.push('<option value="' + code + '"' + (isSelected ? ' selected' : '') + '>' +
-                                            code + ' - ' + valueDisplay +
+                                        const eligible = !!coupon.eligible;
+                                        const reason = String(coupon.reason || 'Không khả dụng');
+                                        const shouldSelect = current && code.toUpperCase() === current && eligible;
+                                        const optionLabel = code + ' - ' + valueDisplay + (eligible ? '' : ' (' + reason + ')');
+                                        optionsHtml.push('<option value="' + code + '"' + (shouldSelect ? ' selected' : '') + (eligible ? '' : ' disabled') + '>' +
+                                            optionLabel +
                                             '</option>');
                                     });
 
                                     selectElement.innerHTML = optionsHtml.join('');
+
+                                    if (current && !selectElement.value) {
+                                        const selectedCoupon = allCoupons.find(c => String(c.code || '').trim().toUpperCase() === current);
+                                        if (selectedCoupon && !selectedCoupon.eligible) {
+                                            selectedTextElement.textContent =
+                                                'Coupon ' + current + ' không khả dụng: ' + (selectedCoupon.reason || 'Không rõ lý do');
+                                            return;
+                                        }
+                                    }
 
                                     const selectedCode = (selectElement.value || '').trim().toUpperCase();
                                     if (!selectedCode) {

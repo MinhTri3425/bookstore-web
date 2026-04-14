@@ -33,6 +33,7 @@
                         <form method="post" action="${pageContext.request.contextPath}/admin/coupons/save"
                             class="row g-4">
                             <input type="hidden" name="id" value="${coupon.id}">
+                            <c:set var="isEditMode" value="${coupon.id != null}" />
 
                             <div class="col-md-4">
                                 <label class="form-label fw-bold small text-muted">Mã Coupon</label>
@@ -54,12 +55,17 @@
 
                             <div class="col-md-4">
                                 <label class="form-label fw-bold small text-muted">Target coupon</label>
-                                <select class="form-select" id="couponTarget" name="target" required>
+                                <select class="form-select" id="couponTarget" name="target" required ${isEditMode
+                                    ? 'disabled' : '' }>
                                     <option value="PRODUCT" ${coupon.target=='PRODUCT' ? 'selected' : '' }>PRODUCT (giảm
                                         trên sản phẩm)</option>
                                     <option value="SHIPPING" ${coupon.target=='SHIPPING' ? 'selected' : '' }>SHIPPING
                                         (giảm phí vận chuyển)</option>
                                 </select>
+                                <c:if test="${isEditMode}">
+                                    <input type="hidden" name="target" value="${coupon.target}" />
+                                    <div class="form-text">Target không thể thay đổi khi chỉnh sửa coupon.</div>
+                                </c:if>
                             </div>
 
                             <div class="col-md-4">
