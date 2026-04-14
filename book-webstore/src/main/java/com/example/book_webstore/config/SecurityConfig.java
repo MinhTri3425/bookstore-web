@@ -39,7 +39,7 @@ public class SecurityConfig {
                         // 1. TÀI NGUYÊN TĨNH & PUBLIC
                         .requestMatchers("/css/**", "/js/**", "/images/**", "/uploads/**", "/static/**", "/webjars/**")
                         .permitAll()
-                        .requestMatchers("/", "/register", "/login", "/home", "/books/**", "/payment/vnpay-return")
+                        .requestMatchers("/", "/register", "/login", "/home", "/books/**", "/payment/vnpay-return", "/mock-login")
                         .permitAll()
 
                         // 2. PHÂN QUYỀN ADMIN (Chỉ Admin mới được vào)
