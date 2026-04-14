@@ -59,58 +59,6 @@ body {
     color: #143e7a;
 }
 
-.coupon-panel {
-    background: linear-gradient(135deg, #fff7e8, #fff);
-    border: 1px solid #f0d2a3;
-    border-radius: 12px;
-    padding: 16px;
-}
-
-.coupon-form .form-control {
-    min-height: 44px;
-}
-
-.coupon-result {
-    background: #ffffff;
-    border: 1px dashed #d9b26d;
-    border-radius: 10px;
-    padding: 12px 14px;
-}
-
-.coupon-badge {
-    color: #8a5200;
-    margin-bottom: 8px;
-}
-
-.coupon-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
-    color: #374151;
-}
-
-.checkout-summary {
-    margin-top: 20px;
-    padding: 16px;
-    border-radius: 12px;
-    background: #f8fbff;
-    border: 1px solid #d7e6fb;
-}
-
-.summary-line {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 0;
-    border-bottom: 1px solid #e6edf7;
-}
-
-.summary-line.total {
-    border-bottom: none;
-    font-size: 18px;
-    color: #0d4b91;
-}
-
 .cart-row {
     display: flex;
     justify-content: space-between;
@@ -180,10 +128,5 @@ body {
         flex-direction: column;
         align-items: flex-start;
         gap: 10px;
-    }
-
-    .coupon-meta {
-        flex-direction: column;
-        gap: 8px;
     }
 }

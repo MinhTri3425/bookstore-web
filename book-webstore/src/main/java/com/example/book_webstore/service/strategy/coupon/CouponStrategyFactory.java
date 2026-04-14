@@ -1,4 +1,4 @@
-package com.example.book_webstore.strategy.coupon;
+package com.example.book_webstore.service.strategy.coupon;
 
 import java.util.EnumMap;
 import java.util.List;

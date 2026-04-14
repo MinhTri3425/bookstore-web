@@ -1,4 +1,4 @@
-package com.example.book_webstore.service.strategy.ShippingStrategy;
+package com.example.book_webstore.service.strategy.shipping;
 
 import java.math.BigDecimal;
 

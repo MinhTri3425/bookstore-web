@@ -2,16 +2,13 @@ package com.example.book_webstore.controller;
 
 import com.example.book_webstore.dto.ShipperDTO;
 import com.example.book_webstore.dto.ShippingDTO;
-import com.example.book_webstore.dto.CustomerOrderDTO; // Giả sử bạn có DTO này
 import com.example.book_webstore.model.Shipping;
 import com.example.book_webstore.service.ShipperService;
 import com.example.book_webstore.service.ShippingService;
-import com.example.book_webstore.service.OrderService; // Inject thêm để lấy đơn chờ
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
 import java.security.Principal;
 import java.util.List;
 
@@ -21,14 +18,10 @@ public class ProxyShipperController {
 
     private final ShipperService shipperService;
     private final ShippingService shippingService;
-    private final OrderService orderService; // Thêm OrderService
 
-    public ProxyShipperController(ShipperService shipperService,
-            ShippingService shippingService,
-            OrderService orderService) {
+    public ProxyShipperController(ShipperService shipperService, ShippingService shippingService) {
         this.shipperService = shipperService;
         this.shippingService = shippingService;
-        this.orderService = orderService;
     }
 
     @GetMapping("/dashboard")
@@ -36,100 +29,64 @@ public class ProxyShipperController {
         if (principal == null)
             return "redirect:/login";
 
-        String email = principal.getName();
-        ShipperDTO shipper = shipperService.findShipperByEmail(email);
-
+        ShipperDTO shipper = shipperService.findShipperByEmail(principal.getName());
         if (shipper == null)
             return "redirect:/access-denied";
 
-        // Lấy danh sách các đơn hàng MÌNH ĐANG GIAO
-        List<ShippingDTO> activeOrders = shippingService.getActiveShippingsForShipper(shipper.getId());
+        // Lấy tất cả đơn hàng đang được gán cho Shipper này (bao gồm cả PENDING và
+        // SHIPPING)
+        // Bạn cần viết thêm hàm này trong ShippingService
+        List<ShippingDTO> myOrders = shippingService.getShippingsByShipperId(shipper.getId());
 
         model.addAttribute("shipper", shipper);
-        model.addAttribute("orders", activeOrders);
+        model.addAttribute("orders", myOrders);
 
         return "shipper/dashboard";
     }
 
-    // --- MỚI: Trang hiển thị các đơn hàng đang chờ Shipper nhận ---
-    @GetMapping("/available-orders")
-    public String availableOrders(Principal principal, Model model) {
-        if (principal == null)
-            return "redirect:/login";
-
-        // Gọi hàm vừa tạo để lấy "chợ" đơn hàng
-        List<CustomerOrderDTO> pendingOrders = orderService.getOrdersReadyForPickup();
-
-        model.addAttribute("pendingOrders", pendingOrders);
-        return "shipper/available_orders";
-    }
-
-    // --- MỚI: Xử lý khi Shipper bấm "Nhận đơn" ---
+    /**
+     * Xử lý khi Shipper bấm "Đồng ý" (Accept) đơn nổ
+     */
     @PostMapping("/accept")
     public String acceptOrder(@RequestParam Long orderId, Principal principal) {
-        if (principal == null)
-            return "redirect:/login";
-
-        String email = principal.getName();
-        ShipperDTO shipper = shipperService.findShipperByEmail(email);
-
-        if (shipper == null)
-            return "redirect:/access-denied";
-
+        ShipperDTO shipper = shipperService.findShipperByEmail(principal.getName());
         try {
-            // Gọi hàm acceptOrder mà chúng ta đã viết trong ShippingServiceImpl
             shippingService.acceptOrder(orderId, shipper.getId());
             return "redirect:/shipper/dashboard?success=accepted";
         } catch (Exception e) {
-            // Trường hợp có người khác nhanh tay nhận trước hoặc lỗi logic
-            return "redirect:/shipper/available-orders?error=" + e.getMessage();
+            return "redirect:/shipper/dashboard?error=" + e.getMessage();
         }
     }
 
+    /**
+     * Xử lý khi Shipper bấm "Từ chối" (Reject) đơn nổ
+     */
+    @PostMapping("/reject")
+    public String rejectOrder(@RequestParam Long orderId, Principal principal) {
+        ShipperDTO shipper = shipperService.findShipperByEmail(principal.getName());
+        try {
+            shippingService.rejectOrder(orderId, shipper.getId());
+            return "redirect:/shipper/dashboard?info=rejected";
+        } catch (Exception e) {
+            return "redirect:/shipper/dashboard?error=" + e.getMessage();
+        }
+    }
+
+    /**
+     * Xử lý khi giao hàng thành công
+     */
     @PostMapping("/complete")
     public String completeShipping(@RequestParam Long orderId, Principal principal) {
-        if (principal == null)
-            return "redirect:/login";
-
-        String email = principal.getName();
-        ShipperDTO shipper = shipperService.findShipperByEmail(email);
-
-        if (shipper == null)
-            return "redirect:/access-denied";
-
-        // BẢO MẬT: Kiểm tra xem đơn này có đúng là của shipper này không trước khi cho
-        // "Complete"
-        List<ShippingDTO> myOrders = shippingService.getActiveShippingsForShipper(shipper.getId());
-        boolean isMyOrder = myOrders.stream().anyMatch(o -> o.getOrderId().equals(orderId));
-
-        if (!isMyOrder) {
-            return "redirect:/access-denied";
-        }
-
         shippingService.updateStatus(orderId, Shipping.ShippingStatus.DELIVERED);
-
         return "redirect:/shipper/dashboard?success=delivered";
     }
 
     @GetMapping("/history")
     public String shippingHistory(Principal principal, Model model) {
-        if (principal == null)
-            return "redirect:/login";
-
-        String email = principal.getName();
-        ShipperDTO shipper = shipperService.findShipperByEmail(email);
-
-        // Lấy toàn bộ lịch sử (bao gồm cả đơn thành công, thất bại, đã hủy)
+        ShipperDTO shipper = shipperService.findShipperByEmail(principal.getName());
         List<ShippingDTO> history = shippingService.getShippingHistoryForShipper(shipper.getId());
 
-        // Tính toán sơ bộ thu nhập (chỉ tính những đơn DELIVERED)
-        BigDecimal totalEarnings = history.stream()
-                .filter(s -> s.getStatus() == Shipping.ShippingStatus.DELIVERED)
-                .map(ShippingDTO::getCost)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
         model.addAttribute("history", history);
-        model.addAttribute("totalEarnings", totalEarnings);
         return "shipper/history";
     }
 }

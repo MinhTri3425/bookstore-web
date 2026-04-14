@@ -1,6 +1,7 @@
 package com.example.book_webstore.service.impl;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.text.NumberFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -18,6 +19,10 @@ import com.example.book_webstore.model.*;
 import com.example.book_webstore.repository.*;
 import com.example.book_webstore.service.OrderService;
 import com.example.book_webstore.service.ShippingService;
+import com.example.book_webstore.service.strategy.coupon.CouponCalculationStrategy;
+import com.example.book_webstore.service.strategy.shipping.ShippingCostStrategy;
+import com.example.book_webstore.service.strategy.coupon.CouponStrategyFactory;
+import com.example.book_webstore.service.strategy.shipping.ShippingCostStrategyFactory;
 
 @Service
 @Transactional(readOnly = true)
@@ -31,19 +36,26 @@ public class OrderServiceImpl implements OrderService {
     private final UserRepository userRepository;
     private final ShippingService shippingService;
     private final CouponUsageRepository couponUsageRepository;
+    private final ShippingCostStrategyFactory shippingStrategyFactory;
+    private final CouponStrategyFactory couponStrategyFactory;
 
     public OrderServiceImpl(
             CustomerOrderRepository customerOrderRepository,
             PaymentRepository paymentRepository,
             UserRepository userRepository,
             ShippingService shippingService,
-            CouponUsageRepository couponUsageRepository) {
+            CouponUsageRepository couponUsageRepository,
+            ShippingCostStrategyFactory shippingStrategyFactory,
+            CouponStrategyFactory couponStrategyFactory) {
 
         this.customerOrderRepository = customerOrderRepository;
         this.paymentRepository = paymentRepository;
         this.userRepository = userRepository;
         this.shippingService = shippingService;
         this.couponUsageRepository = couponUsageRepository;
+        this.shippingStrategyFactory = shippingStrategyFactory;
+        this.couponStrategyFactory = couponStrategyFactory;
+
     }
 
     // ================= COUPON =================
@@ -159,29 +171,59 @@ public class OrderServiceImpl implements OrderService {
         CustomerOrder order = customerOrderRepository.findDetailById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 
+        // Kiểm tra logic chuyển đổi trạng thái (StateMachine)
         if (!isAllowedTransition(order.getStatus(), status)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Invalid order status transition: " + order.getStatus() + " -> " + status);
         }
 
-        // Validate COMPLETED
+        // --- LOGIC TRỪ TỒN KHO (STOCK) ---
+        if (status == CustomerOrder.OrderStatus.CONFIRMED && order.getStatus() == CustomerOrder.OrderStatus.PENDING) {
+            for (OrderItem item : order.getItems()) {
+                Book book = item.getBook();
+                if (book == null)
+                    continue;
+
+                if (book.getStock() < item.getQuantity()) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Sách '" + book.getTitle() + "' không đủ tồn kho (Còn lại: " + book.getStock() + ")");
+                }
+
+                book.setStock(book.getStock() - item.getQuantity());
+            }
+
+            // --- KÍCH HOẠT TỰ ĐỘNG PHÂN SHIPPER TẠI ĐÂY ---
+            // Sau khi trừ kho và xác nhận đơn thành công, hệ thống tìm shipper ngay
+            shippingService.autoAssignShipper(id);
+        }
+
+        // 2. Khi đơn hàng bị CANCELLED: Hoàn lại kho
+        if (status == CustomerOrder.OrderStatus.CANCELLED) {
+            if (order.getStatus() == CustomerOrder.OrderStatus.CONFIRMED) {
+                for (OrderItem item : order.getItems()) {
+                    Book book = item.getBook();
+                    if (book != null) {
+                        book.setStock(book.getStock() + item.getQuantity());
+                    }
+                }
+            }
+            restoreCouponUsage(order);
+            shippingService.handleOrderCancelled(id);
+        }
+
+        // Validate khi hoàn thành đơn hàng (COMPLETED)
         if (status == CustomerOrder.OrderStatus.COMPLETED) {
             if (order.getPayment() == null ||
                     order.getPayment().getStatus() != Payment.PaymentStatus.PAID) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Payment must be PAID");
+                        "Đơn hàng chưa được thanh toán (PAID)");
             }
 
             if (order.getShipping() == null ||
                     order.getShipping().getStatus() != Shipping.ShippingStatus.DELIVERED) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Shipping must be DELIVERED");
+                        "Đơn hàng chưa được giao thành công (DELIVERED)");
             }
-        }
-
-        if (status == CustomerOrder.OrderStatus.CANCELLED) {
-            restoreCouponUsage(order);
-            shippingService.handleOrderCancelled(id);
         }
 
         attachCustomerFromPaymentIfMissing(order);
@@ -243,7 +285,6 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private CustomerOrderDTO toCustomerOrderDto(CustomerOrder order, boolean includeItems) {
-
         attachCustomerFromPaymentIfMissing(order);
 
         Payment payment = order.getPayment();
@@ -256,6 +297,12 @@ public class OrderServiceImpl implements OrderService {
         dto.setCreatedAt(order.getCreatedAt());
         dto.setStatus(order.getStatus());
 
+        // Thông tin cơ bản từ Order (đảm bảo không null cho JSP)
+        dto.setReceiverName(order.getReceiverName() != null ? order.getReceiverName() : NOT_AVAILABLE);
+        dto.setAddress(order.getAddress() != null ? order.getAddress() : NOT_AVAILABLE);
+        dto.setPhoneNumber(order.getPhoneNumber() != null ? order.getPhoneNumber() : NOT_AVAILABLE);
+        dto.setNote(order.getNote());
+
         dto.setUserId(customer != null ? String.valueOf(customer.getId()) : null);
         dto.setCustomer(toUserDto(customer));
         dto.setPayment(toPaymentDto(payment));
@@ -264,29 +311,37 @@ public class OrderServiceImpl implements OrderService {
         dto.setStatusCssClass(toStatusCssClass(order.getStatus()));
         dto.setCreatedAtDisplay(formatDateTime(order.getCreatedAt()));
 
-        dto.setItemCount(order.getItems().stream()
-                .mapToInt(OrderItem::getQuantity).sum());
+        dto.setItemCount(order.getItems().stream().mapToInt(OrderItem::getQuantity).sum());
 
-        dto.setTotalAmountDisplay(formatAmount(resolveAmount(order, payment)));
+        // Tính toán tài chính để hiển thị
+        BigDecimal subtotal = calculateSubtotal(order);
+        BigDecimal discount = order.getDiscountAmount() != null ? order.getDiscountAmount() : BigDecimal.ZERO;
+        BigDecimal total = resolveAmount(order, payment);
+
+        dto.setSubtotalAmountDisplay(formatAmount(subtotal));
+        dto.setDiscountAmountDisplay(formatAmount(discount));
+        dto.setTotalAmountDisplay(formatAmount(total));
 
         dto.setCustomerName(customer != null ? customer.getName() : NOT_AVAILABLE);
+        dto.setCouponCode(order.getCoupon() != null ? order.getCoupon().getCode() : null);
 
-        dto.setShippingMethod(shipping != null && shipping.getMethod() != null
-                ? shipping.getMethod().name()
-                : NOT_AVAILABLE);
+        // Xử lý thông tin Vận chuyển
+        if (shipping != null) {
+            dto.setShippingMethod(shipping.getMethod() != null ? shipping.getMethod().name() : NOT_AVAILABLE);
+            dto.setShippingStatusDisplay(shipping.getStatus() != null ? shipping.getStatus().name() : NOT_AVAILABLE);
+            if (shipping.getShipper() != null) {
+                dto.setShipperName(shipping.getShipper().getName());
+            }
+        } else {
+            dto.setShippingMethod(NOT_AVAILABLE);
+            dto.setShippingStatusDisplay(NOT_AVAILABLE);
+        }
 
-        dto.setShippingStatusDisplay(shipping != null && shipping.getStatus() != null
-                ? shipping.getStatus().name()
-                : NOT_AVAILABLE);
+        if (payment != null) {
+            dto.setPaymentStatusDisplay(payment.getStatus() != null ? payment.getStatus().name() : NOT_AVAILABLE);
+        }
 
-        dto.setShipperName(shipping != null && shipping.getShipper() != null
-                ? shipping.getShipper().getName()
-                : NOT_AVAILABLE);
-
-        dto.setPaymentStatusDisplay(payment != null && payment.getStatus() != null
-                ? payment.getStatus().name()
-                : NOT_AVAILABLE);
-
+        // Quyền hạn thao tác
         dto.setCanCancel(order.getStatus() == CustomerOrder.OrderStatus.PENDING);
         dto.setCanConfirm(order.getStatus() == CustomerOrder.OrderStatus.PENDING);
         dto.setCanComplete(order.getStatus() == CustomerOrder.OrderStatus.CONFIRMED);
@@ -425,9 +480,11 @@ public class OrderServiceImpl implements OrderService {
 
     private boolean isAllowedTransition(CustomerOrder.OrderStatus current,
             CustomerOrder.OrderStatus target) {
-
-        if (current == null || target == null || current == target)
+        // Nếu không có trạng thái hoặc trạng thái không đổi, vẫn cho phép tiếp tục
+        if (current == null || target == null)
             return false;
+        if (current == target)
+            return true;
 
         return switch (current) {
             case PENDING -> target == CustomerOrder.OrderStatus.CONFIRMED
@@ -469,5 +526,59 @@ public class OrderServiceImpl implements OrderService {
                 .stream()
                 .map(o -> toCustomerOrderDto(o, false))
                 .collect(Collectors.toList());
+    }
+
+    private BigDecimal calculateSubtotal(CustomerOrder order) {
+        if (order.getItems() == null || order.getItems().isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        return order.getItems().stream()
+                .filter(item -> item.getBook() != null && item.getBook().getPrice() != null)
+                .map(item -> item.getBook().getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    @Override
+    @Transactional
+    public void refreshOrderTotal(Long orderId) {
+        CustomerOrder order = customerOrderRepository.findById(orderId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+
+        // 1. Tiền hàng gốc
+        BigDecimal subtotal = calculateSubtotal(order);
+
+        // 2. Tiền Ship (Dùng ShippingCostProvider bạn vừa gửi)
+        BigDecimal shippingCost = BigDecimal.ZERO;
+        if (order.getShipping() != null && order.getShipping().getMethod() != null) {
+            ShippingCostStrategy shippingStrategy = shippingStrategyFactory
+                    .getStrategy(order.getShipping().getMethod());
+            if (shippingStrategy != null) {
+                shippingCost = shippingStrategy.calculateShippingCost(order.getId());
+                order.getShipping().setCost(shippingCost);
+            }
+        }
+
+        // 3. Tiền giảm giá Coupon
+        BigDecimal discount = BigDecimal.ZERO;
+        if (order.getCoupon() != null) {
+            CouponCalculationStrategy couponStrategy = couponStrategyFactory.getStrategy(order.getCoupon().getType());
+            if (couponStrategy != null) {
+                discount = couponStrategy.calculateDiscount(order.getCoupon(), subtotal);
+                order.setDiscountAmount(discount);
+            }
+        }
+
+        // 4. Tính toán tổng cuối cùng (Final Total)
+        // Công thức: (Subtotal - Discount) + Shipping
+        BigDecimal finalAmount = subtotal.subtract(discount).add(shippingCost).max(BigDecimal.ZERO);
+
+        // 5. Cập nhật Payment
+        Payment payment = ensurePayment(order);
+        payment.setAmount(finalAmount);
+
+        paymentRepository.save(payment);
+        customerOrderRepository.save(order);
     }
 }

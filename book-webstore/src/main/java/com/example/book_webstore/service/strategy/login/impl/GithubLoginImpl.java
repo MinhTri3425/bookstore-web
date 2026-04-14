@@ -1,24 +1,22 @@
-package com.example.book_webstore.service.strategy.impl;
+package com.example.book_webstore.service.strategy.login.impl;
 
-import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Component;
 import com.example.book_webstore.model.User;
 import com.example.book_webstore.repository.UserRepository;
-import com.example.book_webstore.service.strategy.LoginStrategy;
+import com.example.book_webstore.service.strategy.login.LoginStrategy;
 
 @Component
-public class FacebookLoginImpl implements LoginStrategy {
-
+public class GithubLoginImpl implements LoginStrategy {
     @Autowired
     private UserRepository userRepository;
-
     @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Override
-    public User authenticate() {
-        String mockEmail = "MinhTri@gmail.com";
+    public User login() {
+        String mockEmail = "DangKhoa@gmail.com";
 
         // Tìm user theo email
         User existingUser = userRepository.findByEmail(mockEmail);
@@ -31,7 +29,7 @@ public class FacebookLoginImpl implements LoginStrategy {
         // Nếu chưa có (existingUser == null) thì tạo mới
         User newUser = new User();
         newUser.setEmail(mockEmail);
-        newUser.setName("Hồ Minh Trí");
+        newUser.setName("Dương Đăng Khoa");
         newUser.setPhoneNumber("0901234567");
         newUser.setRole(User.Role.USER);
         newUser.setPassword(passwordEncoder.encode("123456"));

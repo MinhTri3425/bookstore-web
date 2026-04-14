@@ -23,6 +23,7 @@ import com.example.book_webstore.repository.CustomerOrderRepository;
 import com.example.book_webstore.repository.PaymentRepository;
 import com.example.book_webstore.repository.ShippingRepository;
 import com.example.book_webstore.repository.UserRepository;
+import com.example.book_webstore.repository.CouponRepository;
 import com.example.book_webstore.service.CartService;
 import com.example.book_webstore.service.payment.strategy.PaymentStrategyResolver;
 import org.springframework.stereotype.Service;
@@ -52,16 +53,18 @@ public class CartServiceImpl implements CartService {
     private final UserRepository userRepository;
     private final AddressRepository addressRepository;
     private final PaymentStrategyResolver paymentStrategyResolver;
+    private final CouponRepository couponRepository;
 
     public CartServiceImpl(CartRepository cartRepository,
-                           CartItemRepository cartItemRepository,
-                           BookRepository bookRepository,
-                           CustomerOrderRepository customerOrderRepository,
-                           PaymentRepository paymentRepository,
-                           ShippingRepository shippingRepository,
-                           UserRepository userRepository,
-                           AddressRepository addressRepository,
-                           PaymentStrategyResolver paymentStrategyResolver) {
+            CartItemRepository cartItemRepository,
+            BookRepository bookRepository,
+            CustomerOrderRepository customerOrderRepository,
+            PaymentRepository paymentRepository,
+            ShippingRepository shippingRepository,
+            UserRepository userRepository,
+            AddressRepository addressRepository,
+            PaymentStrategyResolver paymentStrategyResolver,
+            CouponRepository couponRepository) {
         this.cartRepository = cartRepository;
         this.cartItemRepository = cartItemRepository;
         this.bookRepository = bookRepository;
@@ -71,6 +74,7 @@ public class CartServiceImpl implements CartService {
         this.userRepository = userRepository;
         this.addressRepository = addressRepository;
         this.paymentStrategyResolver = paymentStrategyResolver;
+        this.couponRepository = couponRepository;
     }
 
     @Override
@@ -129,104 +133,92 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
+    @Transactional
     public Long checkoutSelectedItems(Long cartId,
-                                      List<Long> selectedBookIds,
-                                      String customerEmail,
-                                      Long selectedAddressId,
-                                      String receiverName,
-                                      String phoneNumber,
-                                      String note,
-                                      Payment.PaymentMethod paymentMethod) {
-        if (selectedBookIds == null || selectedBookIds.isEmpty()) {
-            throw new IllegalArgumentException("Vui lòng chọn ít nhất một sản phẩm");
-        }
-        if (customerEmail == null || customerEmail.isBlank()) {
-            throw new IllegalArgumentException("Không tìm thấy thông tin tài khoản");
-        }
-        if (isBlank(receiverName)) {
-            throw new IllegalArgumentException("Vui lòng nhập tên người nhận");
-        }
-        if (isBlank(phoneNumber)) {
-            throw new IllegalArgumentException("Vui lòng nhập số điện thoại");
-        }
+            List<Long> selectedBookIds,
+            String customerEmail,
+            Long selectedAddressId,
+            String receiverName,
+            String phoneNumber,
+            String note,
+            Payment.PaymentMethod paymentMethod,
+            String shippingMethod,
+            String couponCode) {
 
-        String normalizedPhone = normalizePhoneNumber(phoneNumber);
-        if (!normalizedPhone.matches(VN_PHONE_REGEX)) {
-            throw new IllegalArgumentException("Số điện thoại không đúng định dạng Việt Nam");
-        }
-
-        Cart cart = getOrCreateEntity(cartId);
-        Set<Long> selectedBookIdSet = new HashSet<>(selectedBookIds);
-
-        List<CartItem> selectedCartItems = cartItemRepository.findByCartId(cart.getId()).stream()
-                .filter(item -> item.getBook() != null && selectedBookIdSet.contains(item.getBook().getId()))
-                .collect(Collectors.toList());
-
-        if (selectedCartItems.isEmpty()) {
-            throw new IllegalArgumentException("Các sản phẩm đã chọn không hợp lệ");
-        }
-
+        // --- 1. Validate và lấy dữ liệu cơ bản (Giữ nguyên) ---
+        if (selectedBookIds == null || selectedBookIds.isEmpty())
+            throw new IllegalArgumentException("Vui lòng chọn sản phẩm");
         User customer = userRepository.findByEmail(customerEmail);
-        if (customer == null) {
-            throw new IllegalArgumentException("Không tìm thấy người dùng đăng nhập");
-        }
+        if (customer == null)
+            throw new IllegalArgumentException("Người dùng không tồn tại");
 
-        String deliveryAddress = resolveDeliveryAddress(customer, selectedAddressId);
-
+        // --- 2. Khởi tạo Order (Gán dữ liệu thô) ---
         CustomerOrder order = new CustomerOrder();
         order.setCreatedAt(LocalDateTime.now());
         order.setStatus(CustomerOrder.OrderStatus.PENDING);
         order.setCustomer(customer);
         order.setReceiverName(receiverName.trim());
-        order.setAddress(deliveryAddress);
-        order.setPhoneNumber(normalizedPhone);
-        order.setNote(note == null ? null : note.trim());
+        order.setAddress(resolveDeliveryAddress(customer, selectedAddressId));
+        order.setPhoneNumber(normalizePhoneNumber(phoneNumber));
+        order.setNote(note);
+
+        // QUAN TRỌNG: Gán Coupon từ mã khách nhập vào để refreshOrderTotal có cái mà
+        // tính
+        if (couponCode != null && !couponCode.isBlank()) {
+            couponRepository.findByCodeIgnoreCase(couponCode.trim())
+                    .ifPresent(order::setCoupon);
+        }
         customerOrderRepository.save(order);
 
+        // --- 3. Tạo OrderItems và tính Subtotal tạm thời ---
         List<OrderItem> orderItems = new ArrayList<>();
         BigDecimal subtotalAmount = BigDecimal.ZERO;
-        for (CartItem cartItem : selectedCartItems) {
+        for (CartItem cartItem : filterSelectedItems(cartId, selectedBookIds)) {
             OrderItem orderItem = new OrderItem();
             orderItem.setOrder(order);
             orderItem.setBook(cartItem.getBook());
             orderItem.setQuantity(cartItem.getQuantity());
-            orderItem.setBookTitle(
-                cartItem.getBook() != null && cartItem.getBook().getTitle() != null
-                    ? cartItem.getBook().getTitle()
-                    : "Untitled book");
+            orderItem.setBookTitle(cartItem.getBook().getTitle());
             orderItems.add(orderItem);
-
-            if (cartItem.getBook() != null && cartItem.getBook().getPrice() != null) {
-                subtotalAmount = subtotalAmount.add(
-                        cartItem.getBook().getPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity())));
-            }
+            subtotalAmount = subtotalAmount
+                    .add(cartItem.getBook().getPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity())));
         }
-
         order.setItems(orderItems);
-        customerOrderRepository.save(order);
 
+        // --- 4. Khởi tạo Shipping (Gán phương thức khách chọn) ---
         Shipping shipping = new Shipping();
         shipping.setOrder(order);
-        shipping.setMethod(Shipping.ShippingMethod.STANDARD);
+        // Chuyển chuỗi "FAST"/"ECONOMY" từ JSP thành Enum
+        shipping.setMethod(Shipping.ShippingMethod.valueOf(shippingMethod.toUpperCase()));
         shipping.setStatus(Shipping.ShippingStatus.PENDING);
-        shipping.setCreatedAt(LocalDateTime.now());
-        shipping.setDeliveryAddress(deliveryAddress);
+        shipping.setCustomerAddress(order.getAddress());
+        shipping.setCustomerName(order.getReceiverName());
+        shipping.setCustomerPhone(order.getPhoneNumber());
+        shipping.setCost(BigDecimal.ZERO); // Tạm để 0, tí nữa Strategy sẽ tính lại
         shippingRepository.save(shipping);
         order.setShipping(shipping);
 
-        // TODO: replace placeholders with real backend pricing from shipping/coupon services.
-        String couponCode = null;
-        BigDecimal finalAmount = calculateCheckoutTotalPlaceholder(subtotalAmount, shipping.getMethod(), couponCode);
-
-        Payment payment = paymentStrategyResolver
-            .resolve(paymentMethod)
-            .createPayment(order, customer, finalAmount);
+        // --- 5. Khởi tạo Payment với giá tạm tính ---
+        Payment payment = paymentStrategyResolver.resolve(paymentMethod)
+                .createPayment(order, customer, subtotalAmount);
         paymentRepository.save(payment);
         order.setPayment(payment);
 
-        cartItemRepository.deleteAll(selectedCartItems);
+        // Lưu lại toàn bộ thông tin Order để chờ Refresh
+        customerOrderRepository.save(order);
+        cartItemRepository.deleteAll(filterSelectedItems(cartId, selectedBookIds));
 
         return order.getId();
+    }
+
+    private List<CartItem> filterSelectedItems(Long cartId, List<Long> selectedBookIds) {
+        if (selectedBookIds == null || selectedBookIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+        Set<Long> selectedBookIdSet = new HashSet<>(selectedBookIds);
+        return cartItemRepository.findByCartId(cartId).stream()
+                .filter(item -> item.getBook() != null && selectedBookIdSet.contains(item.getBook().getId()))
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -257,11 +249,6 @@ public class CartServiceImpl implements CartService {
                 paymentRepository.save(payment);
             }
 
-            CustomerOrder order = payment.getOrder();
-            if (order != null && order.getStatus() == CustomerOrder.OrderStatus.PENDING) {
-                order.setStatus(CustomerOrder.OrderStatus.CONFIRMED);
-                customerOrderRepository.save(order);
-            }
             return;
         }
 
@@ -291,10 +278,10 @@ public class CartServiceImpl implements CartService {
 
     @Override
     public AddressDTO addUserAddress(String customerEmail,
-                                     String street,
-                                     String ward,
-                                     String district,
-                                     String city) {
+            String street,
+            String ward,
+            String district,
+            String city) {
         if (customerEmail == null || customerEmail.isBlank()) {
             throw new IllegalArgumentException("Không tìm thấy thông tin tài khoản");
         }
@@ -361,7 +348,7 @@ public class CartServiceImpl implements CartService {
         dto.setPrice(hydrated.getPrice());
         dto.setDescription(hydrated.getDescription());
         dto.setImages(hydrated.getImages().stream()
-            .sorted(Comparator.comparingInt(BookImage::getSortOrder))
+                .sorted(Comparator.comparingInt(BookImage::getSortOrder))
                 .map(img -> {
                     BookImageDTO imageDTO = new BookImageDTO();
                     imageDTO.setId(img.getId());
@@ -393,7 +380,8 @@ public class CartServiceImpl implements CartService {
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Địa chỉ đã chọn không hợp lệ"));
 
-        return formatAddress(selectedAddress.getStreet(), selectedAddress.getWard(), selectedAddress.getDistrict(), selectedAddress.getCity());
+        return formatAddress(selectedAddress.getStreet(), selectedAddress.getWard(), selectedAddress.getDistrict(),
+                selectedAddress.getCity());
     }
 
     private String formatAddress(String street, String ward, String district, String city) {
@@ -413,8 +401,8 @@ public class CartServiceImpl implements CartService {
     }
 
     private BigDecimal calculateCheckoutTotalPlaceholder(BigDecimal subtotal,
-                                                         Shipping.ShippingMethod shippingMethod,
-                                                         String couponCode) {
+            Shipping.ShippingMethod shippingMethod,
+            String couponCode) {
         BigDecimal safeSubtotal = subtotal == null ? BigDecimal.ZERO : subtotal;
         BigDecimal shippingFee = calculateShippingFeePlaceholder(shippingMethod);
         BigDecimal couponDiscount = calculateCouponDiscountPlaceholder(couponCode, safeSubtotal);
@@ -422,9 +410,12 @@ public class CartServiceImpl implements CartService {
         BigDecimal payable = safeSubtotal.add(shippingFee).subtract(couponDiscount);
         return payable.max(BigDecimal.ZERO);
     }
-//tính phí vận chuyển dựa trên phương thức vận chuyển, placeholder này sẽ được thay thế bằng logic tính phí thực tế từ backend sau này
+
+    // tính phí vận chuyển dựa trên phương thức vận chuyển, placeholder này sẽ được
+    // thay thế bằng logic tính phí thực tế từ backend sau này
     private BigDecimal calculateShippingFeePlaceholder(Shipping.ShippingMethod shippingMethod) {
-        // TODO: integrate real shipping fee calculation from backend configuration/service.
+        // TODO: integrate real shipping fee calculation from backend
+        // configuration/service.
         if (shippingMethod == null) {
             return BigDecimal.ZERO;
         }
@@ -434,7 +425,8 @@ public class CartServiceImpl implements CartService {
             case ECONOMY -> BigDecimal.valueOf(10000);
         };
     }
-//tính phí giảm giá 
+
+    // tính phí giảm giá
     private BigDecimal calculateCouponDiscountPlaceholder(String couponCode, BigDecimal subtotal) {
         // TODO: validate coupon and calculate discount from coupon backend.
         if (couponCode == null || couponCode.isBlank() || subtotal == null) {

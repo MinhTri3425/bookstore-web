@@ -2,7 +2,6 @@ package com.example.book_webstore.controller;
 
 import com.example.book_webstore.dto.ShippingDTO;
 import com.example.book_webstore.model.Shipping;
-import com.example.book_webstore.service.ShipperService;
 import com.example.book_webstore.service.ShippingService;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Controller;
@@ -15,21 +14,21 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class ShippingController {
 
     private final ShippingService shippingService;
-    private final ShipperService shipperService;
 
-    public ShippingController(ShippingService shippingService, ShipperService shipperService) {
+    public ShippingController(ShippingService shippingService) {
         this.shippingService = shippingService;
-        this.shipperService = shipperService;
     }
 
+    /**
+     * Hiển thị danh sách vận chuyển (Có tìm kiếm và phân trang)
+     */
     @GetMapping
-    public String list(@RequestParam(required = false) String orderId, // Chuyển thành String để khớp với Service
+    public String list(@RequestParam(required = false) String orderId,
             @RequestParam(required = false) Shipping.ShippingStatus status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             Model model) {
 
-        // Gọi hàm phân trang từ Service
         Page<ShippingDTO> shippingPage = shippingService.getAdminShippingPage(orderId, status, page, size);
 
         model.addAttribute("shippings", shippingPage.getContent());
@@ -37,8 +36,7 @@ public class ShippingController {
         model.addAttribute("totalPages", shippingPage.getTotalPages());
         model.addAttribute("totalElements", shippingPage.getTotalElements());
 
-        // Load dữ liệu cho bộ lọc (Filter)
-        model.addAttribute("shipperOptions", shipperService.getAllShippers());
+        // Dữ liệu cho các dropdown bộ lọc
         model.addAttribute("statusOptions", Shipping.ShippingStatus.values());
         model.addAttribute("searchOrderId", orderId);
         model.addAttribute("selectedStatus", status);
@@ -46,21 +44,20 @@ public class ShippingController {
         return "admin/shipping/list";
     }
 
-    @PostMapping("/{orderId}/update") // Đổi tên path variable thành orderId cho rõ ràng
-    public String update(@PathVariable Long orderId,
+    /**
+     * Admin chỉ can thiệp cập nhật trạng thái đơn hàng
+     * (Ví dụ: Đánh dấu đơn thất bại, đơn đã giao nếu shipper quên bấm,...)
+     */
+    @PostMapping("/{orderId}/update-status")
+    public String updateStatus(@PathVariable Long orderId,
             @RequestParam Shipping.ShippingStatus status,
-            @RequestParam(required = false) Long shipperId,
-            RedirectAttributes redirectAttributes) {
-
-        // 1. Cập nhật trạng thái (Hàm updateStatus của bạn đang nhận orderId)
-        shippingService.updateStatus(orderId, status);
-
-        // 2. Nếu Admin chọn Shipper (Gán thủ công hoặc đổi người)
-        if (shipperId != null) {
-            shippingService.assignShipperManual(orderId, shipperId);
+            RedirectAttributes ra) {
+        try {
+            shippingService.updateStatus(orderId, status);
+            ra.addFlashAttribute("successMessage", "Cập nhật trạng thái đơn hàng #" + orderId + " thành công!");
+        } catch (Exception e) {
+            ra.addFlashAttribute("errorMessage", "Lỗi: " + e.getMessage());
         }
-
-        redirectAttributes.addFlashAttribute("successMessage", "Cập nhật thông tin vận chuyển thành công!");
         return "redirect:/admin/shipping";
     }
 }

@@ -32,9 +32,9 @@ import com.example.book_webstore.repository.CouponRepository;
 import com.example.book_webstore.repository.CouponUsageRepository;
 import com.example.book_webstore.repository.CustomerOrderRepository;
 import com.example.book_webstore.repository.PaymentRepository;
-import com.example.book_webstore.strategy.coupon.CouponStrategyFactory;
 import com.example.book_webstore.repository.UserRepository;
 import com.example.book_webstore.service.CouponService;
+import com.example.book_webstore.service.strategy.coupon.CouponStrategyFactory;
 
 @Service
 @Transactional
@@ -113,7 +113,8 @@ public class CouponServiceImpl implements CouponService {
             couponRepository.delete(coupon);
             couponRepository.flush();
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không thể xóa mã giảm giá này vì đã được áp dụng trong đơn hàng. Vui lòng vô hiệu hóa thay vì xóa.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Không thể xóa mã giảm giá này vì đã được áp dụng trong đơn hàng. Vui lòng vô hiệu hóa thay vì xóa.");
         }
     }
 
@@ -243,7 +244,8 @@ public class CouponServiceImpl implements CouponService {
         if (couponDTO.getMinOrderValue() != null && couponDTO.getMinOrderValue().compareTo(BigDecimal.ZERO) < 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Minimum order value cannot be negative");
         }
-        if (couponDTO.getMaxDiscountValue() != null && couponDTO.getMaxDiscountValue().compareTo(BigDecimal.ZERO) <= 0) {
+        if (couponDTO.getMaxDiscountValue() != null
+                && couponDTO.getMaxDiscountValue().compareTo(BigDecimal.ZERO) <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Maximum discount must be greater than zero");
         }
 
@@ -317,7 +319,8 @@ public class CouponServiceImpl implements CouponService {
             discountAmount = subtotal;
         }
 
-        BigDecimal finalTotal = subtotal.subtract(discountAmount).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal finalTotal = subtotal.subtract(discountAmount).max(BigDecimal.ZERO).setScale(2,
+                RoundingMode.HALF_UP);
         int usedCount = getUsageCount(coupon.getId(), customer.getId());
         int remainingUses = Math.max(coupon.getMaxUsePerUser() - usedCount - 1, 0);
 
@@ -379,14 +382,16 @@ public class CouponServiceImpl implements CouponService {
     private List<BookQuantityLine> toBookQuantityLinesFromCart(List<CartItem> cartItems) {
         return cartItems.stream()
                 .filter(item -> item.getBook() != null && item.getBook().getPrice() != null)
-                .map(item -> new BookQuantityLine(item.getBook().getId(), item.getBook().getPrice(), item.getQuantity()))
+                .map(item -> new BookQuantityLine(item.getBook().getId(), item.getBook().getPrice(),
+                        item.getQuantity()))
                 .toList();
     }
 
     private List<BookQuantityLine> toBookQuantityLinesFromOrder(CustomerOrder order) {
         return order.getItems().stream()
                 .filter(item -> item.getBook() != null && item.getBook().getPrice() != null)
-                .map(item -> new BookQuantityLine(item.getBook().getId(), item.getBook().getPrice(), item.getQuantity()))
+                .map(item -> new BookQuantityLine(item.getBook().getId(), item.getBook().getPrice(),
+                        item.getQuantity()))
                 .toList();
     }
 

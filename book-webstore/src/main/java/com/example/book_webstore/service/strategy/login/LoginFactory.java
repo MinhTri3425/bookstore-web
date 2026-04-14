@@ -1,16 +1,16 @@
-package com.example.book_webstore.service.strategy;
+package com.example.book_webstore.service.strategy.login;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import com.example.book_webstore.service.strategy.login.impl.FacebookLoginImpl;
+import com.example.book_webstore.service.strategy.login.impl.GoogleLoginImpl;
 
-import com.example.book_webstore.service.strategy.impl.FacebookLoginImpl;
-import com.example.book_webstore.service.strategy.impl.GoogleLoginImpl;
 //import com.example.book_webstore.service.strategy.impl.GithubMockStrategy;
 @Service
 public class LoginFactory {
     @Autowired
     private GoogleLoginImpl googleStrategy;
-    
+
     @Autowired
     private FacebookLoginImpl facebookStrategy;
 
@@ -22,12 +22,10 @@ public class LoginFactory {
             return googleStrategy;
         } else if ("facebook".equalsIgnoreCase(provider)) {
             return facebookStrategy;
-        } 
+        }
         // else if ("github".equalsIgnoreCase(provider)) {
-        //     return githubStrategy;
+        // return githubStrategy;
         // }
         throw new IllegalArgumentException("Không hỗ trợ phương thức đăng nhập: " + provider);
     }
 }
-
-

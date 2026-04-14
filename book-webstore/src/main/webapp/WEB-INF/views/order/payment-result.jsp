@@ -71,7 +71,7 @@
             </div>
 
             <div class="d-flex gap-2 justify-content-center flex-wrap">
-                <a class="btn btn-primary" href="${pageContext.request.contextPath}/order/history">Xem đơn hàng của tôi</a>
+                <a class="btn btn-primary" href="${pageContext.request.contextPath}/my-orders">Xem đơn hàng của tôi</a>
                 <a class="btn btn-outline-secondary" href="${pageContext.request.contextPath}/books">Tiếp tục mua sắm</a>
             </div>
         </div>

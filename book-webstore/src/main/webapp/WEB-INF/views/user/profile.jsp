@@ -21,6 +21,20 @@
         <div class="row justify-content-center">
             <div class="col-xl-8 col-lg-10">
                 
+                <div class="mb-3">
+                    <sec:authorize access="hasRole('ADMIN')">
+                        <a href="${pageContext.request.contextPath}/admin/dashboard" class="text-decoration-none text-danger fw-bold">
+                            <i class="fas fa-arrow-left me-2"></i> Quay lại Dashboard Quản trị
+                        </a>
+                    </sec:authorize>
+
+                    <sec:authorize access="!hasRole('ADMIN')">
+                        <a href="${pageContext.request.contextPath}/books" class="text-decoration-none text-muted fw-semibold">
+                            <i class="fas fa-arrow-left me-2"></i> Quay lại cửa hàng
+                        </a>
+                    </sec:authorize>
+                </div>
+
                 <c:if test="${param.success != null}">
                     <div class="alert alert-success border-0 shadow-sm rounded-4 mb-4 p-3 animate__animated animate__fadeInDown">
                         <i class="fas fa-check-circle me-2"></i> Cập nhật hồ sơ thành công!
@@ -51,12 +65,14 @@
 
                     <div class="info-grid">
                         <form action="${pageContext.request.contextPath}/profile/update" method="post">
+                            <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
+
                             <div class="row">
                                 <div class="col-12 form-group-custom">
                                     <label class="label-custom">Email tài khoản</label>
                                     <div class="input-wrapper">
                                         <i class="fas fa-envelope-open input-icon"></i>
-                                        <input type="email" class="form-control-modern" value="${user.email}" readonly>
+                                        <input type="email" class="form-control-modern" value="${user.email}" readonly disabled>
                                     </div>
                                     <p class="text-muted small mt-2 ml-2">Email dùng để định danh tài khoản và không thể thay đổi.</p>
                                 </div>
@@ -79,10 +95,13 @@
                                     </div>
                                 </div>
 
-                                <div class="col-12 mt-4">
-                                    <button type="submit" class="btn btn-save">
-                                        <span>Lưu thay đổi thông tin</span>
-                                        <i class="fas fa-arrow-right"></i>
+                                <div class="col-12 mt-4 d-flex gap-3">
+                                    <!-- <a href="${pageContext.request.contextPath}/books" class="btn btn-light border py-3 px-4 rounded-4 fw-bold flex-grow-1">
+                                        Tiếp tục mua sắm
+                                    </a> -->
+                                    <button type="submit" class="btn btn-save py-3 px-4 rounded-4 fw-bold flex-grow-1">
+                                        <span>Lưu thay đổi</span>
+                                        <i class="fas fa-check ms-2"></i>
                                     </button>
                                 </div>
                             </div>
@@ -94,7 +113,6 @@
     </div>
 
     <jsp:include page="../fragments/footer.jsp" />
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

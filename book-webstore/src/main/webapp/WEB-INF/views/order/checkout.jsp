@@ -97,7 +97,7 @@
                                 </div>
                                 <div class="col-md-6">
                                     <label for="phoneNumber" class="form-label">Số điện thoại</label>
-                                    <input type="text" class="form-control" id="phoneNumber" name="phoneNumber" value="${phoneNumber}" placeholder="Ví dụ: 0912345678 hoặc +84912345678" pattern="^(0|\+84)(3|5|7|8|9)[0-9]{8}$" title="Số điện thoại VN hợp lệ: 0912345678 hoặc +84912345678" required>
+                                    <input type="text" class="form-control" id="phoneNumber" name="phoneNumber" value="${phoneNumber}" placeholder="Ví dụ: 0912345678" required>
                                 </div>
                                 <div class="col-12">
                                     <label for="note" class="form-label">Ghi chú</label>
@@ -125,7 +125,6 @@
                                         <option value="FAST">Giao nhanh (1-2 ngày)</option>
                                         <option value="ECONOMY">Giao tiết kiệm (3-6 ngày)</option>
                                     </select>
-                                    <div class="form-text">UI tạm thời, chưa tích hợp backend tính phí ship.</div>
                                 </div>
 
                                 <div class="col-12">
@@ -142,7 +141,7 @@
                 </div>
 
                 <div class="col-lg-5">
-                    <div class="card shadow-sm border-0">
+                    <div class="card shadow-sm border-0 sticky-top" style="top: 2rem;">
                         <div class="card-body p-4">
                             <h5 class="fw-bold mb-3">Mặt hàng đã chọn</h5>
                             <c:forEach var="item" items="${selectedItems}">
@@ -157,12 +156,26 @@
                                 </div>
                             </c:forEach>
 
-                            <div class="d-flex justify-content-between mt-3 pt-2 border-top">
-                                <span class="fw-bold">Tổng thanh toán</span>
-                                <span class="fw-bold text-danger"><fmt:formatNumber value="${selectedTotal}" pattern="#,###"/> VND</span>
+                            <div class="mt-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>Tạm tính:</span>
+                                    <span id="displaySubtotal"><fmt:formatNumber value="${selectedTotal}" pattern="#,###"/> VND</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>Phí vận chuyển:</span>
+                                    <span id="displayShipping">0 VND</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-1 text-success">
+                                    <span>Giảm giá:</span>
+                                    <span id="displayDiscount">0 VND</span>
+                                </div>
+                                <div class="d-flex justify-content-between mt-2 pt-2 border-top">
+                                    <span class="fw-bold">Tổng thanh toán</span>
+                                    <span class="fw-bold text-danger" id="displayFinalTotal"><fmt:formatNumber value="${selectedTotal}" pattern="#,###"/> VND</span>
+                                </div>
                             </div>
 
-                            <button type="submit" class="btn btn-success w-100 mt-4">Xác nhận đặt hàng</button>
+                            <button type="submit" class="btn btn-success w-100 mt-4 py-2 fw-bold">Xác nhận đặt hàng</button>
                         </div>
                     </div>
                 </div>
@@ -182,23 +195,22 @@
                             <c:forEach var="bookId" items="${selectedBookIds}">
                                 <input type="hidden" name="selectedBookIds" value="${bookId}"/>
                             </c:forEach>
-
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label for="newStreet" class="form-label">Số nhà, tên đường</label>
-                                    <input type="text" class="form-control" id="newStreet" name="street" placeholder="Ví dụ: 12 Nguyễn Trãi" required>
+                                    <input type="text" class="form-control" id="newStreet" name="street" required>
                                 </div>
                                 <div class="col-md-6">
                                     <label for="newWard" class="form-label">Phường/Xã</label>
-                                    <input type="text" class="form-control" id="newWard" name="ward" placeholder="Ví dụ: Phường 7" required>
+                                    <input type="text" class="form-control" id="newWard" name="ward" required>
                                 </div>
                                 <div class="col-md-6">
                                     <label for="newDistrict" class="form-label">Quận/Huyện</label>
-                                    <input type="text" class="form-control" id="newDistrict" name="district" placeholder="Ví dụ: Quận 5" required>
+                                    <input type="text" class="form-control" id="newDistrict" name="district" required>
                                 </div>
                                 <div class="col-md-6">
                                     <label for="newCity" class="form-label">Tỉnh/Thành phố</label>
-                                    <input type="text" class="form-control" id="newCity" name="city" placeholder="Ví dụ: TP. Hồ Chí Minh" required>
+                                    <input type="text" class="form-control" id="newCity" name="city" required>
                                 </div>
                             </div>
                         </div>
@@ -217,75 +229,81 @@
     <script>
         (function () {
             const form = document.getElementById('placeOrderForm');
+            const shippingSelect = document.getElementById('shippingMethod');
+            const couponInput = document.getElementById('couponCode');
+            const applyCouponBtn = document.getElementById('applyCouponBtn');
+            const couponHint = document.getElementById('couponHint');
+
+            const displayShipping = document.getElementById('displayShipping');
+            const displayDiscount = document.getElementById('displayDiscount');
+            const displayFinalTotal = document.getElementById('displayFinalTotal');
+
+            // Hàm định dạng tiền tệ
+            function formatCurrency(value) {
+                return new Intl.NumberFormat('vi-VN').format(value) + ' VND';
+            }
+
+            // Hàm AJAX cập nhật giá từ Strategy Backend
+            function updateOrderPreview() {
+                const method = shippingSelect.value;
+                const coupon = couponInput.value.trim();
+                const bookIds = Array.from(document.querySelectorAll('input[name="selectedBookIds"]')).map(i => i.value);
+
+                const url = `${pageContext.request.contextPath}/api/checkout/preview?shippingMethod=` + method + 
+                            `&couponCode=` + encodeURIComponent(coupon) + 
+                            `&bookIds=` + bookIds.join(',');
+
+                fetch(url)
+                    .then(response => response.json())
+                    .then(data => {
+                        displayShipping.textContent = formatCurrency(data.shippingFee);
+                        displayDiscount.textContent = '-' + formatCurrency(data.discount);
+                        displayFinalTotal.textContent = formatCurrency(data.finalTotal);
+                        
+                        if(coupon !== "") {
+                            couponHint.textContent = data.discount > 0 ? "Áp dụng mã giảm giá thành công!" : "Mã không hợp lệ hoặc không đủ điều kiện.";
+                            couponHint.className = data.discount > 0 ? "text-success" : "text-danger";
+                        }
+                    })
+                    .catch(error => console.error('Error:', error));
+            }
+
+            // Lắng nghe sự kiện thay đổi
+            shippingSelect.addEventListener('change', updateOrderPreview);
+            applyCouponBtn.addEventListener('click', updateOrderPreview);
+
+            // Logic hiển thị địa chỉ (Giữ nguyên của bạn)
             const selectedAddress = document.getElementById('selectedAddressId');
             const streetInput = document.getElementById('street');
             const wardInput = document.getElementById('ward');
             const districtInput = document.getElementById('district');
             const cityInput = document.getElementById('city');
-            const applyCouponBtn = document.getElementById('applyCouponBtn');
-            const couponCodeInput = document.getElementById('couponCode');
-            const couponHint = document.getElementById('couponHint');
-
-            if (!form) {
-                return;
-            }
-
-            function setAddressInputs(street, ward, district, city) {
-                streetInput.value = street || '';
-                wardInput.value = ward || '';
-                districtInput.value = district || '';
-                cityInput.value = city || '';
-            }
 
             function onAddressChange() {
                 const option = selectedAddress.options[selectedAddress.selectedIndex];
-                const hasSelectedAddress = selectedAddress.value && selectedAddress.value.trim().length > 0;
-
-                if (!hasSelectedAddress) {
-                    setAddressInputs('', '', '', '');
+                if (!selectedAddress.value) {
+                    streetInput.value = wardInput.value = districtInput.value = cityInput.value = '';
                     return;
                 }
-
-                setAddressInputs(
-                    option.getAttribute('data-street'),
-                    option.getAttribute('data-ward'),
-                    option.getAttribute('data-district'),
-                    option.getAttribute('data-city')
-                );
+                streetInput.value = option.getAttribute('data-street');
+                wardInput.value = option.getAttribute('data-ward');
+                districtInput.value = option.getAttribute('data-district');
+                cityInput.value = option.getAttribute('data-city');
             }
 
             selectedAddress.addEventListener('change', onAddressChange);
+            
+            // Khởi chạy lần đầu để lấy phí ship mặc định
             onAddressChange();
+            updateOrderPreview();
 
+            // Validation trước khi submit
             form.addEventListener('submit', function (event) {
-                const selectedAddressId = selectedAddress.value.trim();
-                const phoneInput = document.getElementById('phoneNumber');
-                const phoneValue = (phoneInput.value || '').replace(/\s+/g, '');
-                const vnPhoneRegex = /^(0|\+84)(3|5|7|8|9)\d{8}$/;
-
-                if (selectedAddressId.length === 0) {
+                if (!selectedAddress.value.trim()) {
                     event.preventDefault();
-                    alert('Vui lòng chọn địa chỉ đã lưu trước khi đặt hàng.');
-                    return;
-                }
-
-                if (!vnPhoneRegex.test(phoneValue)) {
-                    event.preventDefault();
-                    alert('Số điện thoại không đúng định dạng Việt Nam. Ví dụ: 0912345678 hoặc +84912345678');
-                    phoneInput.focus();
+                    alert('Vui lòng chọn địa chỉ giao hàng.');
                 }
             });
-
-            if (applyCouponBtn && couponCodeInput && couponHint) {
-                applyCouponBtn.addEventListener('click', function () {
-                    const code = (couponCodeInput.value || '').trim();
-                    if (!code) {
-                        couponHint.textContent = 'Vui lòng nhập mã giảm giá.';
-                        return;
-                    }
-                    couponHint.textContent = 'Da nhan ma "' + code + '" (chua tich hop backend).';
-                });
-            }
         })();
     </script>
 </body>

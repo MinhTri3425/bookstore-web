@@ -2,6 +2,25 @@
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%@ taglib prefix="sec" uri="http://www.springframework.org/security/tags" %>
 
+<style>
+    .navbar { z-index: 1060 !important; }
+    /* Tùy chỉnh để các mục nằm ngang đẹp hơn */
+    .nav-user-item {
+        display: flex;
+        align-items: center;
+    }
+    .logout-button {
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+    }
+    /* Hiệu ứng hover nhẹ cho các icon */
+    .nav-link:hover {
+        color: #4361ee !important;
+    }
+</style>
+
 <nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm sticky-top">
     <div class="container">
         <a class="navbar-brand fw-bold" href="${pageContext.request.contextPath}/">
@@ -14,11 +33,12 @@
 
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ms-auto align-items-center">
+                
                 <li class="nav-item">
                     <a class="nav-link px-3" href="${pageContext.request.contextPath}/books">Sách</a>
                 </li>
 
-                <li class="nav-item me-lg-2">
+                <li class="nav-item me-lg-3">
                     <a class="nav-link px-3 position-relative" href="${pageContext.request.contextPath}/cart">
                         <i class="fas fa-shopping-cart fs-5"></i>
                         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
@@ -28,55 +48,44 @@
                 </li>
 
                 <sec:authorize access="isAuthenticated()">
-                    <li class="nav-item dropdown ms-lg-3">
-                        <a class="nav-link dropdown-toggle btn btn-outline-primary btn-sm px-3 text-dark border-0" 
-                           href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-user-circle fs-5 me-1"></i>
-                            <sec:authentication property="principal.username" />
+                    
+                    <sec:authorize access="hasRole('ADMIN')">
+                        <li class="nav-item">
+                            <a class="nav-link px-3 text-danger fw-bold" href="${pageContext.request.contextPath}/admin/dashboard">
+                                <i class="fas fa-user-shield me-1"></i> Admin
+                            </a>
+                        </li>
+                    </sec:authorize>
+
+                    <c:if test="${sessionScope.user.isShipper}">
+                        <li class="nav-item">
+                            <a class="nav-link px-3 text-success fw-bold" href="${pageContext.request.contextPath}/shipper/dashboard">
+                                <i class="fas fa-truck-fast me-1"></i> Shipper
+                            </a>
+                        </li>
+                    </c:if>
+
+                    <li class="nav-item">
+                        <a class="nav-link px-3" href="${pageContext.request.contextPath}/profile">
+                            <i class="fas fa-user-circle text-primary me-1"></i> Cá nhân
                         </a>
-                        <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 p-2" style="min-width: 220px;">
-                            
-                            <li class="px-3 py-2 border-bottom mb-2 bg-light rounded-top">
-                                <span class="small text-muted d-block">Tài khoản của</span>
-                                <span class="fw-bold text-dark text-truncate d-block">
-                                    <sec:authentication property="principal.username" />
-                                </span>
-                            </li>
-
-                            <sec:authorize access="hasRole('ADMIN')">
-                                <li>
-                                    <a class="dropdown-item text-danger fw-bold" href="${pageContext.request.contextPath}/admin/dashboard">
-                                        <i class="fas fa-user-shield me-2"></i>Quản trị hệ thống
-                                    </a>
-                                </li>
-                                <li><hr class="dropdown-divider"></li>
-                            </sec:authorize>
-
-                            <sec:authorize access="hasRole('SHIPPER') or hasRole('USER')">
-                                <c:if test="${sessionScope.user.isShipper}">
-                                    <li>
-                                        <a class="dropdown-item fw-bold text-success" href="${pageContext.request.contextPath}/shipper/dashboard">
-                                            <i class="fas fa-truck-fast me-2"></i>Nhiệm vụ giao hàng
-                                        </a>
-                                    </li>
-                                    <li><hr class="dropdown-divider"></li>
-                                </c:if>
-                            </sec:authorize>
-
-                            <li>
-                                <a class="dropdown-item py-2" href="${pageContext.request.contextPath}/profile">
-                                    <i class="fas fa-id-card me-2 text-primary"></i> <strong>Thông tin cá nhân</strong>
-                                </a>
-                            </li>
-                            
-                            <li>
-                                <a class="dropdown-item py-2" href="${pageContext.request.contextPath}/order/history">
-                                    <i class="fas fa-history me-2 text-muted"></i>Lịch sử mua hàng
-                                </a>
-                            </li>
-                            
-                            </ul>
                     </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link px-3" href="${pageContext.request.contextPath}/my-orders">
+                            <i class="fas fa-history text-muted me-1"></i> Lịch sử
+                        </a>
+                    </li>
+
+                    <li class="nav-item ms-lg-2">
+                        <form action="${pageContext.request.contextPath}/logout" method="post" class="m-0 p-0">
+                            <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
+                            <button type="submit" class="nav-link px-3 logout-button text-danger">
+                                <i class="fas fa-sign-out-alt"></i> Thoát
+                            </button>
+                        </form>
+                    </li>
+
                 </sec:authorize>
 
                 <sec:authorize access="!isAuthenticated()">
@@ -84,6 +93,7 @@
                         <a class="btn btn-primary btn-sm px-4 rounded-pill" href="${pageContext.request.contextPath}/login">Đăng nhập</a>
                     </li>
                 </sec:authorize>
+
             </ul>
         </div>
     </div>

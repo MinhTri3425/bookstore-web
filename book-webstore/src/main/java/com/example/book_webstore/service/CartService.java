@@ -17,13 +17,15 @@ public interface CartService {
     CartDTO updateItemQuantity(Long cartId, Long bookId, int quantity);
 
     Long checkoutSelectedItems(Long cartId,
-                               List<Long> selectedBookIds,
-                               String customerEmail,
-                               Long selectedAddressId,
-                               String receiverName,
-                               String phoneNumber,
-                               String note,
-                               Payment.PaymentMethod paymentMethod);
+            List<Long> selectedBookIds,
+            String customerEmail,
+            Long selectedAddressId,
+            String receiverName,
+            String phoneNumber,
+            String note,
+            Payment.PaymentMethod paymentMethod,
+            String shippingMethod,
+            String couponCode);
 
     BigDecimal getOrderPaymentAmount(Long orderId);
 
@@ -32,10 +34,10 @@ public interface CartService {
     List<AddressDTO> getUserAddresses(String customerEmail);
 
     AddressDTO addUserAddress(String customerEmail,
-                              String street,
-                              String ward,
-                              String district,
-                              String city);
+            String street,
+            String ward,
+            String district,
+            String city);
 
     long getItemCount(Long cartId);
 }

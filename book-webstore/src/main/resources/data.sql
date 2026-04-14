@@ -34,17 +34,6 @@ INSERT INTO books (title, isbn, description, price, stock, author_id, category_i
 (N'Atomic Habits', '978-604-1-78901-2', N'Cuốn sách của James Clear về sức mạnh của thói quen nhỏ. Hướng dẫn cách xây dựng thói quen tốt và loại bỏ thói quen xấu.', 135000.00, 50, 7, 7),
 (N'Nghĩ Giàu & Làm Giàu', '978-604-1-89012-3', N'Tác phẩm kinh điển của Napoleon Hill về nguyên tắc thành công. Dựa trên nghiên cứu của hàng nghìn người thành đạt.', 125000.00, 50, 8, 8);
 
--- Insert Inventory for books
--- INSERT INTO inventory (book_id, quantity) VALUES 
--- (1, 50),
--- (2, 30),
--- (3, 40),
--- (4, 35),
--- (5, 45),
--- (6, 25),
--- (7, 55),
--- (8, 20);
-
 -- Insert Book Images
 INSERT INTO book_images (book_id, url, alt_text, sort_order) VALUES
 (1, '/images/books/dac-nhan-tam.jpg', N'Đắc Nhân Tâm - Bìa sách', 1),
@@ -62,3 +51,4 @@ VALUES ('admin@gmail.com', '$2a$10$WEc2pPmjsqfugfUbl3OVX.FmS2dr.fvsrGUNs6qUY6uTn
 -- Tạo tài khoản Khách hàng (USER)
 INSERT INTO users (email, password, name, phone_number, role, is_shipper) 
 VALUES ('user@gmail.com', '$2a$10$WEc2pPmjsqfugfUbl3OVX.FmS2dr.fvsrGUNs6qUY6uTn9hUG.VAu', 'Khách hàng', '0987654321', 'USER', FALSE);
+

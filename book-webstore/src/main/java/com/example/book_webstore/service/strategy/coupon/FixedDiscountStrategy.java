@@ -1,4 +1,4 @@
-package com.example.book_webstore.strategy.coupon;
+package com.example.book_webstore.service.strategy.coupon;
 
 import java.math.BigDecimal;
 import org.springframework.stereotype.Component;

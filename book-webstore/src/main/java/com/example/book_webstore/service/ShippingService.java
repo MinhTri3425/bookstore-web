@@ -7,11 +7,11 @@ import com.example.book_webstore.dto.ShippingDTO;
 import com.example.book_webstore.model.Shipping;
 
 public interface ShippingService {
+    void autoAssignShipper(Long orderId);
 
     void acceptOrder(Long orderId, Long shipperId);
 
-    // Gán thủ công bởi Admin (truyền orderId để xác định đơn hàng cần gán)
-    void assignShipperManual(Long orderId, Long shipperId);
+    void rejectOrder(Long orderId, Long shipperId);
 
     // Cập nhật trạng thái giao hàng (Dùng orderId để đồng bộ với trang chi tiết đơn
     // hàng)

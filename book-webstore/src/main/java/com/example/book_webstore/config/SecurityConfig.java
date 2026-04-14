@@ -30,60 +30,47 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable())
+                .csrf(csrf -> csrf.disable()) // Lưu ý: Nếu dùng Production nên bật lại và sửa JSP
                 .authenticationProvider(authenticationProvider())
                 .authorizeHttpRequests(authz -> authz
                         .dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR).permitAll()
 
-                        // QUAN TRỌNG: Cho phép truy cập tài nguyên tĩnh và THƯ MỤC UPLOADS (ảnh sách)
-                        .requestMatchers(
-                                "/",
-                                "/register",
-                                "/login",
-                                "/error",
-                                "/mock-login",
-                                "/css/**",
-                                "/js/**",
-                                "/images/**",
-                                "/uploads/**", // <--- PHẢI CÓ DÒNG NÀY ẢNH MỚI HIỆN
-                                "/books/**", // Cho phép xem chi tiết sách không cần login
-                                "/payment/vnpay-return",
-                                "/home")
+                        // 1. TÀI NGUYÊN TĨNH & PUBLIC
+                        .requestMatchers("/css/**", "/js/**", "/images/**", "/uploads/**", "/static/**", "/webjars/**")
                         .permitAll()
+                        .requestMatchers("/", "/register", "/login", "/home", "/books/**", "/payment/vnpay-return")
+                        .permitAll()
+
+                        // 2. PHÂN QUYỀN ADMIN (Chỉ Admin mới được vào)
                         .requestMatchers("/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/shipper/**").hasAnyRole("ADMIN", "USER")
-                        .requestMatchers("/cart/**", "/order/**", "/my-orders/**").authenticated()
-                        .requestMatchers("/profile/**").authenticated()
-                        // Tất cả các request khác phải đăng nhập
+
+                        // 3. PHÂN QUYỀN SHIPPER
+                        // Vẫn để hasRole("USER") vì Shipper là một User đặc biệt,
+                        // nhưng ta sẽ chặn thêm ở tầng Controller hoặc Interceptor bằng flag isShipper
+                        .requestMatchers("/shipper/**").hasRole("USER")
+
+                        // 4. CÁC TRANG CÒN LẠI YÊU CẦU LOGIN
+                        .requestMatchers("/cart/**", "/order/**", "/my-orders/**", "/profile/**").authenticated()
                         .anyRequest().authenticated())
 
                 .formLogin(form -> form
                         .loginPage("/login")
                         .successHandler((request, response, authentication) -> {
-                            // Lấy thông tin User từ DB
+                            // Logic chuyển hướng sau khi login (Giữ nguyên logic cũ của bạn là ổn)
+                            var authorities = authentication.getAuthorities();
+                            boolean isAdmin = authorities.stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
                             String email = authentication.getName();
                             User user = userRepository.findByEmail(email);
 
-                            Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
-                            boolean isAdmin = authorities.stream()
-                                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-
-                            // LOGIC: ĐĂNG NHẬP XONG LÀ VÀO DASHBOARD NGAY
                             if (isAdmin) {
-                                // Admin vào Dashboard quản trị
                                 response.sendRedirect("/admin/dashboard");
                             } else if (user != null && user.isShipper()) {
-                                // Shipper vào Dashboard giao hàng
                                 response.sendRedirect("/shipper/dashboard");
                             } else {
-
                                 response.sendRedirect("/books");
                             }
                         })
-                        .permitAll())
-                .logout(logout -> logout
-                        .logoutUrl("/logout")
-                        .logoutSuccessUrl("/login?logout")
                         .permitAll());
 
         return http.build();

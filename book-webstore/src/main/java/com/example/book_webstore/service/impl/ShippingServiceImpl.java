@@ -2,13 +2,14 @@ package com.example.book_webstore.service.impl;
 
 import com.example.book_webstore.dto.ShippingDTO;
 import com.example.book_webstore.model.CustomerOrder;
+import com.example.book_webstore.model.Payment;
 import com.example.book_webstore.model.Shipper;
 import com.example.book_webstore.model.Shipping;
 import com.example.book_webstore.repository.ShipperRepository;
 import com.example.book_webstore.repository.ShippingRepository;
 import com.example.book_webstore.repository.CustomerOrderRepository;
 import com.example.book_webstore.service.ShippingService;
-import com.example.book_webstore.service.strategy.ShippingStrategy.ShippingCostProvider;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -16,7 +17,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -28,137 +28,127 @@ public class ShippingServiceImpl implements ShippingService {
     private final ShippingRepository shippingRepository;
     private final ShipperRepository shipperRepository;
     private final CustomerOrderRepository orderRepository;
-    private final ShippingCostProvider shippingCostProvider; // Inject Strategy Provider
 
     public ShippingServiceImpl(ShippingRepository shippingRepository,
             ShipperRepository shipperRepository,
-            CustomerOrderRepository orderRepository,
-            ShippingCostProvider shippingCostProvider) {
+            CustomerOrderRepository orderRepository) {
         this.shippingRepository = shippingRepository;
         this.shipperRepository = shipperRepository;
         this.orderRepository = orderRepository;
-        this.shippingCostProvider = shippingCostProvider;
+    }
+
+    @Override
+    @Transactional
+    public void autoAssignShipper(Long orderId) {
+        // Nếu đã có bản ghi Shipping thì cập nhật shipper chứ không tạo mới
+        Shipping shipping = shippingRepository.findByOrderId(orderId).orElse(null);
+
+        // Nếu chưa có (trường hợp hiếm), mới tạo mới hoàn toàn
+        if (shipping == null) {
+            shipping = new Shipping();
+            CustomerOrder order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new RuntimeException("Đơn hàng không tồn tại"));
+            shipping.setOrder(order);
+            shipping.setCreatedAt(LocalDateTime.now());
+            shipping.setMethod(Shipping.ShippingMethod.STANDARD);
+            shipping.setCost(java.math.BigDecimal.ZERO);
+
+            // Snapshot thông tin
+            shipping.setCustomerName(order.getReceiverName());
+            shipping.setCustomerAddress(order.getAddress());
+            shipping.setCustomerPhone(order.getPhoneNumber());
+            shipping.setNote(order.getNote());
+        }
+
+        // 1. Tìm danh sách Shipper đang rảnh
+        List<Shipper> availableShippers = shipperRepository.findAvailableShippers();
+
+        if (availableShippers.isEmpty()) {
+            // Nếu không có ai rảnh, vẫn lưu shipping nhưng shipperId = null để đơn vào
+            // "chợ"
+            shipping.setShipper(null);
+        } else {
+            // 2. Chọn Shipper đầu tiên rảnh
+            shipping.setShipper(availableShippers.get(0));
+        }
+
+        shipping.setStatus(Shipping.ShippingStatus.PENDING);
+        shippingRepository.save(shipping);
     }
 
     @Override
     @Transactional
     public void acceptOrder(Long orderId, Long shipperId) {
-        // 1. Kiểm tra đơn hàng
-        CustomerOrder order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Đơn hàng không tồn tại"));
+        Shipping shipping = shippingRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy thông tin vận chuyển"));
 
-        // 2. Kiểm tra xem đơn đã có Shipping chưa (tránh 2 shipper cùng nhận 1 đơn)
-        if (shippingRepository.existsByOrderId(orderId)) {
-            throw new RuntimeException("Đơn hàng đã có người nhận giao!");
-        }
-
-        Shipper shipper = shipperRepository.findById(shipperId)
-                .orElseThrow(() -> new RuntimeException("Shipper không tồn tại"));
-
-        // 3. TẠO MỚI bản ghi Shipping khi có người nhận
-        Shipping shipping = new Shipping();
-        shipping.setOrder(order);
-        shipping.setShipper(shipper);
-        shipping.setCreatedAt(LocalDateTime.now());
         shipping.setStatus(Shipping.ShippingStatus.SHIPPING);
-
-        // Phương thức mặc định (có thể lấy từ yêu cầu của khách trong Order)
-        Shipping.ShippingMethod method = Shipping.ShippingMethod.STANDARD;
-        shipping.setMethod(method);
-
-        // Dùng Strategy tính phí ship tại thời điểm nhận đơn
-        BigDecimal cost = shippingCostProvider.getStrategy(method).calculateShippingCost(orderId);
-        shipping.setCost(cost);
-
-        // Lưu thông tin khách hàng từ Order sang Shipping (để Shipper tra cứu nhanh)
-        shipping.setCustomerName(order.getReceiverName());
-        shipping.setCustomerAddress(order.getAddress());
-        shipping.setCustomerPhone(order.getPhoneNumber());
-        shipping.setNote(order.getNote());
-
-        // 4. Cập nhật trạng thái bên Order (Module Ship tác động sang Order)
-        // Lưu ý: Việc này bên Order sẽ hiểu là hàng bắt đầu rời kho
-        // order.setStatus(CustomerOrder.OrderStatus.SHIPPING); // Nếu Enum Order có
-        // SHIPPING
 
         shippingRepository.save(shipping);
     }
 
     @Override
     @Transactional
-    public void assignShipperManual(Long orderId, Long shipperId) {
-        CustomerOrder order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found"));
+    public void rejectOrder(Long orderId, Long shipperId) {
+        Shipping shipping = shippingRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy vận chuyển"));
 
-        Shipper shipper = shipperRepository.findById(shipperId)
-                .orElseThrow(() -> new RuntimeException("Shipper not found"));
+        // Xóa bản ghi gán đơn cũ
+        shippingRepository.delete(shipping);
 
-        Shipping shipping = order.getShipping();
-        if (shipping == null) {
-            shipping = new Shipping();
-            shipping.setOrder(order);
-            shipping.setCreatedAt(LocalDateTime.now());
-            shipping.setMethod(Shipping.ShippingMethod.STANDARD);
-
-            // Tính phí ship cho bản ghi mới
-            BigDecimal calculatedCost = shippingCostProvider.getStrategy(shipping.getMethod())
-                    .calculateShippingCost(orderId);
-            shipping.setCost(calculatedCost);
-        }
-
-        shipping.setShipper(shipper);
-        shipping.setStatus(Shipping.ShippingStatus.SHIPPING);
-        shippingRepository.save(shipping);
+        // Tự động tìm người rảnh khác gán lại
+        autoAssignShipper(orderId);
     }
 
     @Override
     @Transactional
     public void updateStatus(Long orderId, Shipping.ShippingStatus status) {
         CustomerOrder order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng #" + orderId));
 
         Shipping shipping = order.getShipping();
         if (shipping == null)
             return;
 
+        // 1. Cập nhật trạng thái Shipping
         shipping.setStatus(status);
 
+        // 2. Logic khi giao hàng thành công
         if (status == Shipping.ShippingStatus.DELIVERED) {
+            // Đổi trạng thái đơn hàng tổng quát
             order.setStatus(CustomerOrder.OrderStatus.COMPLETED);
+
+            // TỰ ĐỘNG CẬP NHẬT THANH TOÁN (Cho đơn COD)
+            if (order.getPayment() != null &&
+                    order.getPayment().getStatus() != Payment.PaymentStatus.PAID) {
+
+                order.getPayment().setStatus(Payment.PaymentStatus.PAID);
+                order.getPayment().setPaidAt(LocalDateTime.now());
+                // paymentRepository.save(order.getPayment()); // Tự động lưu nhờ @Transactional
+            }
+        }
+
+        // 3. Logic khi giao hàng thất bại (Tùy chọn)
+        if (status == Shipping.ShippingStatus.FAILED) {
+            // Bạn có thể giữ đơn ở CONFIRMED để gán lại người khác hoặc hủy luôn tùy quy
+            // trình
+            // order.setStatus(CustomerOrder.OrderStatus.CANCELLED);
         }
 
         shippingRepository.save(shipping);
+        orderRepository.save(order);
     }
 
     @Override
     public List<ShippingDTO> getActiveShippingsForShipper(Long shipperId) {
         return shippingRepository.findByShipperIdAndStatus(shipperId, Shipping.ShippingStatus.SHIPPING)
-                .stream()
-                .map(this::toDto)
-                .collect(Collectors.toList());
+                .stream().map(this::toDto).collect(Collectors.toList());
     }
 
-    @Override
-    public Page<ShippingDTO> getAdminShippingPage(String orderId, Shipping.ShippingStatus status, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-
-        if (orderId != null && !orderId.trim().isEmpty()) {
-            return shippingRepository.findByOrderId(Long.valueOf(orderId), pageable).map(this::toDto);
-        } else if (status != null) {
-            return shippingRepository.findByStatus(status, pageable).map(this::toDto);
-        }
-
-        return shippingRepository.findAll(pageable).map(this::toDto);
-    }
-
-    // --- MAPPER CẬP NHẬT: Đổ dữ liệu cost từ Entity ra DTO ---
     private ShippingDTO toDto(Shipping shipping) {
         if (shipping == null)
             return null;
-
         CustomerOrder order = shipping.getOrder();
-
-        // Khởi tạo DTO với đầy đủ tham số từ Constructor @AllArgsConstructor
         return new ShippingDTO(
                 shipping.getId(),
                 shipping.getCost(),
@@ -167,47 +157,40 @@ public class ShippingServiceImpl implements ShippingService {
                 (shipping.getShipper() != null) ? shipping.getShipper().getId() : null,
                 (order != null) ? order.getId() : null,
                 shipping.getCreatedAt(),
-                // Lấy thông tin khách hàng từ đối tượng Order
-                (order != null) ? order.getReceiverName() : "N/A",
-                (order != null) ? order.getAddress() : "N/A",
-                (order != null) ? order.getPhoneNumber() : "N/A",
-                (order != null) ? order.getNote() : "");
+                shipping.getCustomerName(),
+                shipping.getCustomerAddress(),
+                shipping.getCustomerPhone(),
+                shipping.getNote());
+    }
+
+    @Override
+    public List<ShippingDTO> getShippingHistoryForShipper(Long shipperId) {
+        return shippingRepository.findByShipperIdOrderByCreatedAtDesc(shipperId)
+                .stream().map(this::toDto).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public void handleOrderCancelled(Long orderId) {
+        shippingRepository.findByOrderId(orderId).ifPresent(s -> {
+            s.setStatus(Shipping.ShippingStatus.FAILED);
+            s.setShipper(null);
+            shippingRepository.save(s);
+        });
+    }
+
+    // Các hàm phụ trợ Admin/Shipper giữ nguyên cấu trúc
+    @Override
+    public Page<ShippingDTO> getAdminShippingPage(String orderId, Shipping.ShippingStatus status, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        return shippingRepository.findAll(pageable).map(this::toDto);
     }
 
     @Override
     public List<ShippingDTO> getShippingsByShipperId(Long shipperId) {
         return shippingRepository.findAll().stream()
                 .filter(s -> s.getShipper() != null && s.getShipper().getId().equals(shipperId))
-                .map(this::toDto)
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    @Transactional
-    public void handleOrderCancelled(Long orderId) {
-        // Tìm bản ghi vận chuyển liên quan đến đơn hàng
-        // Bạn nên viết thêm hàm findByOrderId trong ShippingRepository
-        Shipping shipping = shippingRepository.findByOrderId(orderId)
-                .orElse(null);
-
-        if (shipping != null) {
-            // 1. Cập nhật trạng thái vận chuyển thành FAILED hoặc CANCELLED
-            shipping.setStatus(Shipping.ShippingStatus.FAILED);
-
-            // 2. GIẢI PHÓNG SHIPPER: Cực kỳ quan trọng
-            // Việc set null giúp shipper trở về trạng thái rảnh (ActiveJobs = 0)
-            shipping.setShipper(null);
-
-            shippingRepository.save(shipping);
-        }
-    }
-
-    @Override
-    public List<ShippingDTO> getShippingHistoryForShipper(Long shipperId) {
-        return shippingRepository.findByShipperIdOrderByCreatedAtDesc(shipperId)
-                .stream()
-                .map(this::toDto)
-                .collect(Collectors.toList());
+                .map(this::toDto).collect(Collectors.toList());
     }
 
 }

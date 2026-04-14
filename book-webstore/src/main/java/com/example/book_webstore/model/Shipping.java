@@ -46,12 +46,10 @@ public class Shipping {
     @ToString.Exclude
     private Shipper shipper;
 
-    private String deliveryAddress;
-
     private LocalDateTime createdAt;
 
-    private String CustomerName;
-    private String CustomerAddress;
-    private String CustomerPhone;
+    private String customerName;
+    private String customerAddress;
+    private String customerPhone;
     private String note;
 }
