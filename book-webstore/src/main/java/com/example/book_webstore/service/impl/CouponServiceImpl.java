@@ -3,7 +3,7 @@ package com.example.book_webstore.service.impl;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
@@ -299,14 +299,20 @@ public class CouponServiceImpl implements CouponService {
 
         List<Book> applicableBooks = (coupon.getTarget() == Coupon.CouponTarget.SHIPPING
                 || couponDTO.getApplicableBookIds() == null)
-                        ? Collections.emptyList()
+                        ? new ArrayList<>()
                         : couponDTO.getApplicableBookIds().stream()
                                 .distinct()
                                 .map(bookId -> bookRepository.findById(bookId)
                                         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                                                 "Book not found: " + bookId)))
-                                .toList();
-        coupon.setApplicableBooks(applicableBooks);
+                                .collect(Collectors.toCollection(ArrayList::new));
+
+        if (coupon.getApplicableBooks() == null) {
+            coupon.setApplicableBooks(new ArrayList<>());
+        } else {
+            coupon.getApplicableBooks().clear();
+        }
+        coupon.getApplicableBooks().addAll(applicableBooks);
     }
 
     private CouponCalculation evaluateCoupon(Coupon coupon, User customer, List<BookQuantityLine> lines) {
