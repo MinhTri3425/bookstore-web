@@ -112,7 +112,9 @@
                                                     <label for="phoneNumber" class="form-label">Số điện thoại</label>
                                                     <input type="text" class="form-control" id="phoneNumber"
                                                         name="phoneNumber" value="${phoneNumber}"
-                                                        placeholder="Ví dụ: 0912345678" required>
+                                                        placeholder="Ví dụ: 0912345678" required inputmode="tel"
+                                                        pattern="(0|\+84)(3|5|7|8|9)[0-9]{8}"
+                                                        title="Nhập số điện thoại Việt Nam hợp lệ (VD: 0912345678 hoặc +84912345678)">
                                                 </div>
                                                 <div class="col-12">
                                                     <label for="note" class="form-label">Ghi chú</label>
@@ -420,6 +422,15 @@
                                     if (!selectedAddress.value.trim()) {
                                         event.preventDefault();
                                         alert('Vui lòng chọn địa chỉ giao hàng.');
+                                        return;
+                                    }
+
+                                    const phoneInput = document.getElementById('phoneNumber');
+                                    const normalizedPhone = (phoneInput.value || '').replace(/\s+/g, '').trim();
+                                    const vnPhoneRegex = /^(0|\+84)(3|5|7|8|9)\d{8}$/;
+                                    if (!vnPhoneRegex.test(normalizedPhone)) {
+                                        event.preventDefault();
+                                        alert('Số điện thoại không hợp lệ. Vui lòng nhập đúng định dạng Việt Nam.');
                                     }
                                 });
                             })();

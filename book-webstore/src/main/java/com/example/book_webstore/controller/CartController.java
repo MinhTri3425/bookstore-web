@@ -88,12 +88,10 @@ public class CartController {
             Principal principal,
             @RequestParam(value = "message", required = false) String message) {
 
-        Long cartId = (Long) session.getAttribute(CART_SESSION_KEY);
-        CartDTO cart = cartService.getOrCreateCart(cartId);
-        session.setAttribute(CART_SESSION_KEY, cart.getId());
+        CartDTO cart = resolveCart(session, authentication, principal);
 
         model.addAttribute("cart", cart);
-        model.addAttribute("cartItemCount", cartService.getItemCount(cart.getId()));
+        model.addAttribute("cartItemCount", cartService.getItemCount(cart.getId(), resolveCustomerEmail(authentication, principal)));
         model.addAttribute("cartTotal", calculateCartTotal(cart));
         model.addAttribute("appliedCouponCode", session.getAttribute(APPLIED_COUPON_CODE_SESSION_KEY));
         model.addAttribute("message", message);
@@ -120,7 +118,8 @@ public class CartController {
 
         // 1. Lấy giỏ hàng và tính Subtotal cho các sách được chọn
         Long cartId = (Long) session.getAttribute(CART_SESSION_KEY);
-        CartDTO cart = cartService.getOrCreateCart(cartId);
+        CartDTO cart = cartService.getOrCreateCart(cartId, resolveCustomerEmail(authentication, null));
+        session.setAttribute(CART_SESSION_KEY, cart.getId());
         List<CartItemDTO> selectedItems = filterSelectedItems(cart, bookIds);
 
         BigDecimal subtotal = selectedItems.stream()
@@ -173,10 +172,12 @@ public class CartController {
     public String addToCart(@RequestParam("bookId") Long bookId,
             @RequestParam(value = "quantity", defaultValue = "1") int quantity,
             HttpSession session,
+            Authentication authentication,
             RedirectAttributes redirectAttributes) {
 
         Long cartId = (Long) session.getAttribute(CART_SESSION_KEY);
-        CartDTO cart = cartService.addToCart(cartId, bookId, quantity);
+        String customerEmail = resolveCustomerEmail(authentication, null);
+        CartDTO cart = cartService.addToCart(cartId, customerEmail, bookId, quantity);
         session.setAttribute(CART_SESSION_KEY, cart.getId());
 
         redirectAttributes.addFlashAttribute("message", "Đã thêm sách vào giỏ hàng!");
@@ -187,10 +188,13 @@ public class CartController {
     public String removeFromCart(@RequestParam("bookId") Long bookId,
             @RequestParam(value = "redirectTo", defaultValue = "cart") String redirectTo,
             HttpSession session,
+            Authentication authentication,
             RedirectAttributes redirectAttributes) {
 
         Long cartId = (Long) session.getAttribute(CART_SESSION_KEY);
-        cartService.removeFromCart(cartId, bookId);
+        String customerEmail = resolveCustomerEmail(authentication, null);
+        CartDTO cart = cartService.removeFromCart(cartId, customerEmail, bookId);
+        session.setAttribute(CART_SESSION_KEY, cart.getId());
 
         redirectAttributes.addFlashAttribute("message", "Đã xóa sách khỏi giỏ hàng");
 
@@ -201,12 +205,14 @@ public class CartController {
     public String updateCartItemQuantity(@RequestParam("bookId") Long bookId,
             @RequestParam("quantity") int quantity,
             HttpSession session,
+            Authentication authentication,
             RedirectAttributes redirectAttributes) {
 
         Long cartId = (Long) session.getAttribute(CART_SESSION_KEY);
+        String customerEmail = resolveCustomerEmail(authentication, null);
 
         try {
-            CartDTO cart = cartService.updateItemQuantity(cartId, bookId, quantity);
+            CartDTO cart = cartService.updateItemQuantity(cartId, customerEmail, bookId, quantity);
             session.setAttribute(CART_SESSION_KEY, cart.getId());
             redirectAttributes.addFlashAttribute("message", "Đã cập nhật số lượng sản phẩm");
         } catch (IllegalArgumentException ex) {
@@ -233,9 +239,7 @@ public class CartController {
             return "redirect:/login";
         }
 
-        Long cartId = (Long) session.getAttribute(CART_SESSION_KEY);
-        CartDTO cart = cartService.getOrCreateCart(cartId);
-        session.setAttribute(CART_SESSION_KEY, cart.getId());
+        CartDTO cart = resolveCart(session, authentication, null);
 
         List<CartItemDTO> selectedItems = filterSelectedItems(cart, selectedBookIds);
         if (selectedItems.isEmpty()) {
@@ -273,9 +277,7 @@ public class CartController {
             return "redirect:/login";
         }
 
-        Long cartId = (Long) session.getAttribute(CART_SESSION_KEY);
-        CartDTO cart = cartService.getOrCreateCart(cartId);
-        session.setAttribute(CART_SESSION_KEY, cart.getId());
+        CartDTO cart = resolveCart(session, authentication, null);
 
         List<CartItemDTO> selectedItems = filterSelectedItems(cart, selectedBookIds);
         if (selectedItems.isEmpty()) {
@@ -330,11 +332,13 @@ public class CartController {
         }
 
         Long cartId = (Long) session.getAttribute(CART_SESSION_KEY);
+        CartDTO cart = cartService.getOrCreateCart(cartId, authentication.getName());
+        session.setAttribute(CART_SESSION_KEY, cart.getId());
         Long orderId;
 
         try {
             orderId = cartService.checkoutSelectedItems(
-                    cartId, selectedBookIds, authentication.getName(),
+                cart.getId(), selectedBookIds, authentication.getName(),
                     selectedAddressId, receiverName, phoneNumber, note, paymentMethod,
                     shippingMethod, productCouponCode, shippingCouponCode);
 
@@ -667,6 +671,23 @@ public class CartController {
             total = total.add(item.getBook().getPrice().multiply(BigDecimal.valueOf(item.getQuantity())));
         }
         return total;
+    }
+
+    private CartDTO resolveCart(HttpSession session, Authentication authentication, Principal principal) {
+        Long cartId = (Long) session.getAttribute(CART_SESSION_KEY);
+        CartDTO cart = cartService.getOrCreateCart(cartId, resolveCustomerEmail(authentication, principal));
+        session.setAttribute(CART_SESSION_KEY, cart.getId());
+        return cart;
+    }
+
+    private String resolveCustomerEmail(Authentication authentication, Principal principal) {
+        if (authentication != null && authentication.getName() != null && !authentication.getName().isBlank()) {
+            return authentication.getName();
+        }
+        if (principal != null && principal.getName() != null && !principal.getName().isBlank()) {
+            return principal.getName();
+        }
+        return null;
     }
 
 }

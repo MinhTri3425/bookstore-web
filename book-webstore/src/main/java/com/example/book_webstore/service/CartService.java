@@ -8,13 +8,13 @@ import java.math.BigDecimal;
 import java.util.List;
 
 public interface CartService {
-        CartDTO getOrCreateCart(Long cartId);
+        CartDTO getOrCreateCart(Long cartId, String customerEmail);
 
-        CartDTO addToCart(Long cartId, Long bookId, int quantity);
+        CartDTO addToCart(Long cartId, String customerEmail, Long bookId, int quantity);
 
-        CartDTO removeFromCart(Long cartId, Long bookId);
+        CartDTO removeFromCart(Long cartId, String customerEmail, Long bookId);
 
-        CartDTO updateItemQuantity(Long cartId, Long bookId, int quantity);
+        CartDTO updateItemQuantity(Long cartId, String customerEmail, Long bookId, int quantity);
 
         Long checkoutSelectedItems(Long cartId,
                         List<Long> selectedBookIds,
@@ -40,5 +40,5 @@ public interface CartService {
                         String district,
                         String city);
 
-        long getItemCount(Long cartId);
+        long getItemCount(Long cartId, String customerEmail);
 }

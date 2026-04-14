@@ -42,6 +42,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -90,20 +91,14 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
-    public CartDTO getOrCreateCart(Long cartId) {
-        Cart cart;
-        if (cartId == null) {
-            cart = cartRepository.save(new Cart());
-        } else {
-            cart = cartRepository.findById(cartId).orElseGet(() -> cartRepository.save(new Cart()));
-        }
-        return toCartDTO(cart);
+    public CartDTO getOrCreateCart(Long cartId, String customerEmail) {
+        return toCartDTO(getOrCreateEntity(cartId, customerEmail));
     }
 
     @Override
-    public CartDTO addToCart(Long cartId, Long bookId, int quantity) {
+    public CartDTO addToCart(Long cartId, String customerEmail, Long bookId, int quantity) {
         int safeQuantity = Math.max(quantity, 1);
-        Cart cart = getOrCreateEntity(cartId);
+        Cart cart = getOrCreateEntity(cartId, customerEmail);
         Book book = bookRepository.findByIdWithImages(bookId)
                 .orElseThrow(() -> new RuntimeException("Book not found"));
 
@@ -122,19 +117,19 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
-    public CartDTO removeFromCart(Long cartId, Long bookId) {
-        Cart cart = getOrCreateEntity(cartId);
+    public CartDTO removeFromCart(Long cartId, String customerEmail, Long bookId) {
+        Cart cart = getOrCreateEntity(cartId, customerEmail);
         cartItemRepository.findByCartIdAndBookId(cart.getId(), bookId).ifPresent(cartItemRepository::delete);
         return toCartDTO(cartRepository.findById(cart.getId()).orElseThrow());
     }
 
     @Override
-    public CartDTO updateItemQuantity(Long cartId, Long bookId, int quantity) {
+    public CartDTO updateItemQuantity(Long cartId, String customerEmail, Long bookId, int quantity) {
         if (quantity <= 0) {
             throw new IllegalArgumentException("Số lượng phải lớn hơn 0");
         }
 
-        Cart cart = getOrCreateEntity(cartId);
+        Cart cart = getOrCreateEntity(cartId, customerEmail);
         CartItem item = cartItemRepository.findByCartIdAndBookId(cart.getId(), bookId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sản phẩm trong giỏ hàng"));
 
@@ -165,7 +160,8 @@ public class CartServiceImpl implements CartService {
         if (customer == null)
             throw new IllegalArgumentException("Người dùng không tồn tại");
 
-        List<CartItem> selectedItems = filterSelectedItems(cartId, selectedBookIds);
+        Long effectiveCartId = getOrCreateEntity(cartId, customerEmail).getId();
+        List<CartItem> selectedItems = filterSelectedItems(effectiveCartId, selectedBookIds);
         if (selectedItems.isEmpty()) {
             throw new IllegalArgumentException("Không có sản phẩm hợp lệ để checkout");
         }
@@ -177,7 +173,7 @@ public class CartServiceImpl implements CartService {
         order.setCustomer(customer);
         order.setReceiverName(receiverName.trim());
         order.setAddress(resolveDeliveryAddress(customer, selectedAddressId));
-        order.setPhoneNumber(normalizePhoneNumber(phoneNumber));
+        order.setPhoneNumber(validateAndNormalizePhoneNumber(phoneNumber));
         order.setNote(note);
 
         Shipping.ShippingMethod selectedShippingMethod = resolveShippingMethod(shippingMethod);
@@ -354,18 +350,85 @@ public class CartServiceImpl implements CartService {
 
     @Override
     @Transactional(readOnly = true)
-    public long getItemCount(Long cartId) {
-        if (cartId == null) {
+    public long getItemCount(Long cartId, String customerEmail) {
+        if (cartId == null && (customerEmail == null || customerEmail.isBlank())) {
             return 0;
         }
-        return cartItemRepository.findByCartId(cartId).stream().mapToLong(CartItem::getQuantity).sum();
+
+        Long effectiveCartId = getOrCreateEntity(cartId, customerEmail).getId();
+        return cartItemRepository.findByCartId(effectiveCartId).stream().mapToLong(CartItem::getQuantity).sum();
     }
 
-    private Cart getOrCreateEntity(Long cartId) {
+    private Cart getOrCreateEntity(Long cartId, String customerEmail) {
+        if (customerEmail == null || customerEmail.isBlank()) {
+            return getOrCreateAnonymousCart(cartId);
+        }
+
+        User customer = userRepository.findByEmail(customerEmail);
+        if (customer == null) {
+            return getOrCreateAnonymousCart(cartId);
+        }
+
+        Optional<Cart> userCartOpt = cartRepository.findByUserId(customer.getId());
+        Optional<Cart> sessionCartOpt = cartId == null ? Optional.empty() : cartRepository.findById(cartId);
+
+        if (userCartOpt.isPresent()) {
+            Cart userCart = userCartOpt.get();
+            if (sessionCartOpt.isPresent()) {
+                Cart sessionCart = sessionCartOpt.get();
+                boolean sameCart = Objects.equals(userCart.getId(), sessionCart.getId());
+                boolean canMergeAnonymous = sessionCart.getUser() == null;
+
+                if (!sameCart && canMergeAnonymous) {
+                    mergeCartItems(sessionCart, userCart);
+                }
+            }
+            return userCart;
+        }
+
+        if (sessionCartOpt.isPresent()) {
+            Cart sessionCart = sessionCartOpt.get();
+            if (sessionCart.getUser() == null || Objects.equals(sessionCart.getUser().getId(), customer.getId())) {
+                sessionCart.setUser(customer);
+                return cartRepository.save(sessionCart);
+            }
+        }
+
+        Cart newCart = new Cart();
+        newCart.setUser(customer);
+        return cartRepository.save(newCart);
+    }
+
+    private Cart getOrCreateAnonymousCart(Long cartId) {
         if (cartId == null) {
             return cartRepository.save(new Cart());
         }
         return cartRepository.findById(cartId).orElseGet(() -> cartRepository.save(new Cart()));
+    }
+
+    private void mergeCartItems(Cart sourceCart, Cart targetCart) {
+        List<CartItem> sourceItems = cartItemRepository.findByCartId(sourceCart.getId());
+        for (CartItem sourceItem : sourceItems) {
+            if (sourceItem.getBook() == null) {
+                continue;
+            }
+
+            CartItem targetItem = cartItemRepository.findByCartIdAndBookId(targetCart.getId(), sourceItem.getBook().getId())
+                    .orElseGet(() -> {
+                        CartItem created = new CartItem();
+                        created.setCart(targetCart);
+                        created.setBook(sourceItem.getBook());
+                        created.setQuantity(0);
+                        return created;
+                    });
+
+            targetItem.setQuantity(targetItem.getQuantity() + sourceItem.getQuantity());
+            cartItemRepository.save(targetItem);
+        }
+
+        if (sourceCart.getUser() == null) {
+            cartRepository.delete(sourceCart);
+        }
     }
 
     @Transactional(readOnly = true)
@@ -574,17 +637,6 @@ public class CartServiceImpl implements CartService {
         couponUsageRepository.save(usage);
     }
 
-    private BigDecimal calculateCheckoutTotalPlaceholder(BigDecimal subtotal,
-            Shipping.ShippingMethod shippingMethod,
-            String couponCode) {
-        BigDecimal safeSubtotal = subtotal == null ? BigDecimal.ZERO : subtotal;
-        BigDecimal shippingFee = calculateShippingFeePlaceholder(shippingMethod);
-        BigDecimal couponDiscount = calculateCouponDiscountPlaceholder(couponCode, safeSubtotal);
-
-        BigDecimal payable = safeSubtotal.add(shippingFee).subtract(couponDiscount);
-        return payable.max(BigDecimal.ZERO);
-    }
-
     // tính phí vận chuyển dựa trên phương thức vận chuyển, placeholder này sẽ được
     // thay thế bằng logic tính phí thực tế từ backend sau này
     private BigDecimal calculateShippingFeePlaceholder(Shipping.ShippingMethod shippingMethod) {
@@ -600,16 +652,11 @@ public class CartServiceImpl implements CartService {
         };
     }
 
-    // tính phí giảm giá
-    private BigDecimal calculateCouponDiscountPlaceholder(String couponCode, BigDecimal subtotal) {
-        // TODO: validate coupon and calculate discount from coupon backend.
-        if (couponCode == null || couponCode.isBlank() || subtotal == null) {
-            return BigDecimal.ZERO;
+    private String validateAndNormalizePhoneNumber(String phoneNumber) {
+        String normalizedPhone = phoneNumber == null ? "" : phoneNumber.replaceAll("\\s+", "").trim();
+        if (!normalizedPhone.matches(VN_PHONE_REGEX)) {
+            throw new IllegalArgumentException("Số điện thoại không hợp lệ. Vui lòng nhập đúng định dạng Việt Nam.");
         }
-        return BigDecimal.ZERO;
-    }
-
-    private String normalizePhoneNumber(String phoneNumber) {
-        return phoneNumber == null ? "" : phoneNumber.replaceAll("\\s+", "").trim();
+        return normalizedPhone;
     }
 }

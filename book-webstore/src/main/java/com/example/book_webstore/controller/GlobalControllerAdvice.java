@@ -2,8 +2,10 @@ package com.example.book_webstore.controller;
 
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.security.core.Authentication;
 
 import com.example.book_webstore.service.CartService;
+import com.example.book_webstore.dto.CartDTO;
 
 import jakarta.servlet.http.HttpSession;
 
@@ -17,10 +19,20 @@ public class GlobalControllerAdvice {
     }
 
     @ModelAttribute("globalCartCount")
-    public Long getCartCount(HttpSession session) {
+    public Long getCartCount(HttpSession session, Authentication authentication) {
         Long cartId = (Long) session.getAttribute(CART_SESSION_KEY);
-        if (cartId == null)
+
+        String customerEmail = null;
+        if (authentication != null && authentication.getName() != null && !authentication.getName().isBlank()) {
+            customerEmail = authentication.getName();
+        }
+
+        if (cartId == null && customerEmail == null) {
             return 0L;
-        return cartService.getItemCount(cartId);
+        }
+
+        CartDTO cart = cartService.getOrCreateCart(cartId, customerEmail);
+        session.setAttribute(CART_SESSION_KEY, cart.getId());
+        return cartService.getItemCount(cart.getId(), customerEmail);
     }
 }
