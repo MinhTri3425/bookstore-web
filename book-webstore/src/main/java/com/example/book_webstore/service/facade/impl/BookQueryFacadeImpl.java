@@ -4,7 +4,6 @@ import org.springframework.stereotype.Service;
 
 import com.example.book_webstore.dto.AuthorDTO;
 import com.example.book_webstore.dto.BookDTO;
-import com.example.book_webstore.dto.BookDetailDTO;
 import com.example.book_webstore.dto.BookImageDTO;
 import com.example.book_webstore.dto.CategoryDTO;
 import com.example.book_webstore.service.AuthorService;
@@ -33,30 +32,6 @@ public class BookQueryFacadeImpl implements BookQueryFacade {
         this.bookService = bookService;
         this.authorService = authorService;
         this.bookImageService = bookImageService;
-    }
-
-    @Override
-    public BookDetailDTO getBookDetailById(Long id) {
-
-        BookDTO book = bookService.getBookById(id);
-        if (book == null)
-            return null;
-
-        AuthorDTO author = authorService.getAuthorById(book.getAuthorId());
-        CategoryDTO category = categoryService.getCategoryById(book.getCategoryId());
-        List<BookImageDTO> images = bookImageService.getBookImagesByBookId(id);
-
-        return BookDetailDTO.builder()
-                .id(book.getId())
-                .title(book.getTitle())
-                .isbn(book.getIsbn())
-                .description(book.getDescription())
-                .price(book.getPrice())
-                .author(author)
-                .category(category)
-                .images(images)
-                .stock(book.getStock())
-                .build();
     }
 
     @Override

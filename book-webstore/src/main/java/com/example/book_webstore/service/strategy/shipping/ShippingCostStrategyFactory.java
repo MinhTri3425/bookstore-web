@@ -12,7 +12,6 @@ public class ShippingCostStrategyFactory {
     private final Map<Shipping.ShippingMethod, ShippingCostStrategy> strategyMap = new EnumMap<>(
             Shipping.ShippingMethod.class);
 
-    // Spring tự động thu thập tất cả các Strategy có trong Project vào List này
     public ShippingCostStrategyFactory(List<ShippingCostStrategy> strategies) {
         for (ShippingCostStrategy strategy : strategies) {
             strategyMap.put(strategy.getMethod(), strategy);
