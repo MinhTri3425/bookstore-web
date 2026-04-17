@@ -35,5 +35,3 @@ build/
 logs/
 *.log
 
-# Database backups
-backups/
