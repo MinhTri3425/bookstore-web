@@ -34,3 +34,6 @@ build/
 # Logs
 logs/
 *.log
+
+# Database backups
+backups/

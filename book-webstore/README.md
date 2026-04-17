@@ -31,3 +31,37 @@ Kết quả: Sau khi ấn Đăng nhập, hệ thống sẽ chuyển hướng b�
 
 Note: Cái này mới là bản test các role nha ae
 Note2: Thêm login bằng gg và fb nhưng thực tế 2 chức năng này log bằng mail đc thiết lập sẵn với pass 123456 để áp dụng strategy và factory 
+
+---
+
+## Docker đóng gói và chạy test
+
+### Build + chạy app với MySQL bằng Docker
+
+```bash
+docker compose up -d --build mysql app
+```
+
+Ứng dụng chạy tại `http://localhost:8080`.
+
+Lưu ý: compose đã cấu hình `SPRING_JPA_HIBERNATE_DDL_AUTO=create` và `SPRING_SQL_INIT_MODE=always` để tự tạo schema + seed dữ liệu test khi chạy trong Docker.
+
+## Xuất backup cơ sở dữ liệu
+
+Đã thêm script PowerShell: `scripts/backup-db.ps1`
+
+Chạy lệnh:
+
+```powershell
+./scripts/backup-db.ps1
+```
+
+File backup sẽ nằm trong thư mục `backups/` với tên dạng:
+
+`bookstore-YYYYMMDD-HHMMSS.sql`
+
+Bạn có thể đổi tham số khi cần, ví dụ:
+
+```powershell
+./scripts/backup-db.ps1 -DbName bookstore -DbUser root -DbPassword 1234
+```
