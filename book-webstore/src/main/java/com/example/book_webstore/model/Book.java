@@ -24,6 +24,7 @@ public class Book {
     private String isbn;
     private String description;
     private BigDecimal price;
+    private int stock = 0;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "author_id")

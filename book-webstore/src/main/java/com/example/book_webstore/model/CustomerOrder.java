@@ -1,5 +1,6 @@
 package com.example.book_webstore.model;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -29,6 +30,31 @@ public class CustomerOrder {
     @Enumerated(EnumType.STRING)
     private OrderStatus status;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id")
+    private User customer;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "coupon_id")
+    private Coupon coupon;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "shipping_coupon_id")
+    private Coupon shippingCoupon;
+
+    private BigDecimal discountAmount;
+    private BigDecimal shippingDiscountAmount;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
+
+    @OneToOne(mappedBy = "order", fetch = FetchType.LAZY)
+    private Payment payment;
+
+    @OneToOne(mappedBy = "order", fetch = FetchType.LAZY)
+    private Shipping shipping;
+    private String receiverName;
+    private String address;
+    private String phoneNumber;
+    private String note;
 }

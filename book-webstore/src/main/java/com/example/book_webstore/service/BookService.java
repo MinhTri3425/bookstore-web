@@ -14,4 +14,9 @@ public interface BookService {
 
         void deleteBook(Long id);
 
+        List<BookDTO> searchBooks(String keyword);
+
+        List<BookDTO> filterBooks(String keyword, Long categoryId, Long authorId, Double minPrice, Double maxPrice);
+
+        List<BookDTO> getAllBooksCart();
 }

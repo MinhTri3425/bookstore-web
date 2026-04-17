@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import java.math.BigDecimal;
 
 @Entity
 @Getter
@@ -19,6 +20,7 @@ public class Shipping {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    private BigDecimal cost;
 
     public enum ShippingStatus {
         PENDING, SHIPPING, DELIVERED, FAILED
@@ -45,4 +47,9 @@ public class Shipping {
     private Shipper shipper;
 
     private LocalDateTime createdAt;
+
+    private String customerName;
+    private String customerAddress;
+    private String customerPhone;
+    private String note;
 }

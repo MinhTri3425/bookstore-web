@@ -29,10 +29,23 @@ public class Coupon {
         FIXED
     }
 
+    public enum CouponTarget {
+        PRODUCT,
+        SHIPPING
+    }
+
     @Enumerated(EnumType.STRING)
     private CouponType type;
+
+    @Enumerated(EnumType.STRING)
+    private CouponTarget target = CouponTarget.PRODUCT;
+
     private BigDecimal value;
+    private boolean active = true;
     private int maxUsePerUser;
+    private Integer totalUsageLimit;
+    private BigDecimal minOrderValue;
+    private BigDecimal maxDiscountValue;
     private LocalDateTime startAt;
     private LocalDateTime endAt;
 

@@ -33,9 +33,11 @@ public class User {
     private String password;
     private String name;
     private String phoneNumber;
+    @Column(columnDefinition = "boolean default false")
+    private boolean isShipper = false;
 
     public static enum Role {
-        ADMIN, STAFF, CUSTOMER
+        ADMIN, USER
     }
 
     @Enumerated(EnumType.STRING)
@@ -43,5 +45,8 @@ public class User {
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "user_id")
     private List<Address> addresses = new ArrayList<>();
+
+    @OneToMany(mappedBy = "customer")
+    private List<CustomerOrder> orders = new ArrayList<>();
 
 }

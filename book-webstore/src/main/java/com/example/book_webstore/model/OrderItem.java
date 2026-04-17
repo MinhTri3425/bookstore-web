@@ -17,11 +17,16 @@ public class OrderItem {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private int quantity;
 
+    private int quantity;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id")
+    @ToString.Exclude
+    private CustomerOrder order;
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "book_id")
     @ToString.Exclude
     private Book book;
+    private String BookTitle;
 
 }

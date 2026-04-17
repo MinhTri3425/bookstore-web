@@ -9,8 +9,6 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class InventoryDTO {
-    private Long id;
-    private String bookId;
-    private int quantity;
+public class ApplyCouponRequestDTO {
+    private String code;
 }
