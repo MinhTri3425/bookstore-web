@@ -30,8 +30,16 @@
                 </c:if>
 
                 <div class="card border-0 shadow-sm text-dark">
-                    <div class="card-header bg-white py-3">
+                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
                         <h5 class="mb-0 fw-bold text-muted small text-uppercase">Danh sách coupon hiện có</h5>
+                        <div class="d-flex align-items-center">
+                            <label for="sortCoupons" class="me-2 small text-muted text-nowrap"><i class="fas fa-sort me-1"></i>Sắp xếp:</label>
+                            <select id="sortCoupons" class="form-select form-select-sm" style="width: auto;">
+                                <option value="default">Mặc định</option>
+                                <option value="value-asc">Giá trị giảm: Thấp đến Cao</option>
+                                <option value="value-desc">Giá trị giảm: Cao đến Thấp</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0">
@@ -40,7 +48,9 @@
                                     <th class="px-4">Mã Coupon</th>
                                     <th>Loại</th>
                                     <th>Target</th>
-                                    <th>Giá trị giảm</th>
+                                    <th id="sort-value-header" style="cursor: pointer; user-select: none;" title="Click để sắp xếp theo giá trị giảm">
+                                        Giá trị giảm <i class="fas fa-sort text-muted ms-1" id="sort-value-icon"></i>
+                                    </th>
                                     <th>Thời hạn hiệu lực</th>
                                     <th>Tình trạng sử dụng</th>
                                     <th>Trạng thái</th>
@@ -50,10 +60,10 @@
                             <tbody>
                                 <c:choose>
                                     <c:when test="${not empty coupons}">
-                                        <c:forEach var="coupon" items="${coupons}">
+                                        <c:forEach var="coupon" items="${coupons}" varStatus="status">
                                             <c:set var="isExpired"
                                                 value="${not empty coupon.endAt and coupon.endAt lt currentTime}" />
-                                            <tr>
+                                            <tr class="coupon-row" data-value="${coupon.value}" data-index="${status.index}">
                                                 <td class="px-4">
                                                     <div class="fw-bold text-primary">${coupon.code}</div>
                                                     <div class="small text-muted">
@@ -194,5 +204,47 @@
                             deleteCodeText.textContent = couponCode;
                         });
                     });
+
+                    // Chức năng sắp xếp coupon theo giá trị giảm
+                    const sortSelect = document.getElementById('sortCoupons');
+                    const valueHeader = document.getElementById('sort-value-header');
+                    const sortIcon = document.getElementById('sort-value-icon');
+                    let currentSortOrder = 'none'; // 'none', 'asc', 'desc'
+
+                    if (sortSelect) {
+                        sortSelect.addEventListener('change', function () {
+                            const sortBy = this.value;
+                            const tbody = document.querySelector('table tbody');
+                            if (!tbody) return;
+                            const rows = Array.from(tbody.querySelectorAll('.coupon-row'));
+
+                            if (sortBy === 'default') {
+                                rows.sort((a, b) => parseInt(a.getAttribute('data-index')) - parseInt(b.getAttribute('data-index')));
+                                if (sortIcon) sortIcon.className = 'fas fa-sort text-muted ms-1';
+                                currentSortOrder = 'none';
+                            } else if (sortBy === 'value-asc') {
+                                rows.sort((a, b) => parseFloat(a.getAttribute('data-value')) - parseFloat(b.getAttribute('data-value')));
+                                if (sortIcon) sortIcon.className = 'fas fa-sort-up ms-1 text-primary';
+                                currentSortOrder = 'asc';
+                            } else if (sortBy === 'value-desc') {
+                                rows.sort((a, b) => parseFloat(b.getAttribute('data-value')) - parseFloat(a.getAttribute('data-value')));
+                                if (sortIcon) sortIcon.className = 'fas fa-sort-down ms-1 text-primary';
+                                currentSortOrder = 'desc';
+                            }
+
+                            rows.forEach(row => tbody.appendChild(row));
+                        });
+                    }
+
+                    if (valueHeader && sortSelect) {
+                        valueHeader.addEventListener('click', function () {
+                            if (currentSortOrder === 'none' || currentSortOrder === 'desc') {
+                                sortSelect.value = 'value-asc';
+                            } else {
+                                sortSelect.value = 'value-desc';
+                            }
+                            sortSelect.dispatchEvent(new Event('change'));
+                        });
+                    }
                 })();
             </script>
