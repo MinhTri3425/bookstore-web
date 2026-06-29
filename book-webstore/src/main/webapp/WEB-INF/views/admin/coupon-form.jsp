@@ -125,7 +125,7 @@
                                         <input class="form-check-input ms-0 me-2" type="checkbox" id="active"
                                             name="active" value="true" ${coupon.active ? 'checked' : '' }>
                                         <label class="form-check-label fw-bold text-success" for="active">Kích hoạt
-                                            Coupon
+                                            mã
                                             ngay</label>
                                     </div>
                                 </div>
