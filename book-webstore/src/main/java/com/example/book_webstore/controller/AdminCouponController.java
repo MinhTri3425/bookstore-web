@@ -34,9 +34,19 @@ public class AdminCouponController {
     }
 
     @GetMapping
-    public String listCoupons(Model model) {
-        model.addAttribute("coupons", couponService.getAllCoupons());
+    public String listCoupons(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "filter", defaultValue = "ALL") String filter,
+            @RequestParam(value = "sort", defaultValue = "id,desc") String sort,
+            Model model) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, 10);
+        org.springframework.data.domain.Page<CouponDTO> couponPage = couponService.getAllCoupons(filter, sort, pageable);
+
+        model.addAttribute("couponPage", couponPage);
+        model.addAttribute("coupons", couponPage.getContent());
         model.addAttribute("currentTime", LocalDateTime.now());
+        model.addAttribute("selectedFilter", filter);
+        model.addAttribute("selectedSort", sort);
         return "admin/coupons";
     }
 

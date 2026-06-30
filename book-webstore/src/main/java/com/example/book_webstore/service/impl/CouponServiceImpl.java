@@ -81,6 +81,61 @@ public class CouponServiceImpl implements CouponService {
 
     @Override
     @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<CouponDTO> getAllCoupons(org.springframework.data.domain.Pageable pageable) {
+        return couponRepository.findAll(pageable)
+                .map(this::toCouponDto);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<CouponDTO> getAllCoupons(String filter, String sort, org.springframework.data.domain.Pageable pageable) {
+        org.springframework.data.jpa.domain.Specification<Coupon> spec = (root, query, cb) -> cb.conjunction();
+        LocalDateTime now = LocalDateTime.now();
+
+        if ("ACTIVE".equalsIgnoreCase(filter)) {
+            spec = spec.and((root, query, cb) -> cb.or(
+                cb.isNull(root.get("endAt")),
+                cb.greaterThan(root.get("endAt"), now)
+            ));
+        } else if ("EXPIRED".equalsIgnoreCase(filter)) {
+            spec = spec.and((root, query, cb) -> cb.and(
+                cb.isNotNull(root.get("endAt")),
+                cb.lessThanOrEqualTo(root.get("endAt"), now)
+            ));
+        }
+
+        org.springframework.data.domain.Sort jpaSort = org.springframework.data.domain.Sort.by("id").descending();
+        if (sort != null && !sort.isBlank()) {
+            String[] parts = sort.split(",");
+            String field = parts[0].trim();
+            String direction = parts.length > 1 ? parts[1].trim() : "asc";
+
+            if ("endAt".equalsIgnoreCase(field)) {
+                if ("desc".equalsIgnoreCase(direction)) {
+                    jpaSort = org.springframework.data.domain.Sort.by("endAt").descending().and(org.springframework.data.domain.Sort.by("id").descending());
+                } else {
+                    jpaSort = org.springframework.data.domain.Sort.by("endAt").ascending().and(org.springframework.data.domain.Sort.by("id").descending());
+                }
+            } else if ("id".equalsIgnoreCase(field)) {
+                if ("asc".equalsIgnoreCase(direction)) {
+                    jpaSort = org.springframework.data.domain.Sort.by("id").ascending();
+                } else {
+                    jpaSort = org.springframework.data.domain.Sort.by("id").descending();
+                }
+            }
+        }
+
+        org.springframework.data.domain.Pageable sortedPageable = org.springframework.data.domain.PageRequest.of(
+            pageable.getPageNumber(),
+            pageable.getPageSize(),
+            jpaSort
+        );
+
+        return couponRepository.findAll(spec, sortedPageable).map(this::toCouponDto);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public CouponDTO getCouponById(Long id) {
         Coupon coupon = couponRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Coupon not found"));

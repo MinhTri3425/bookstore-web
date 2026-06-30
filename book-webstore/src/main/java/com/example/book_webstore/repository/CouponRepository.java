@@ -6,7 +6,7 @@ import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import com.example.book_webstore.model.Coupon;
 
-public interface CouponRepository extends JpaRepository<Coupon, Long> {
+public interface CouponRepository extends JpaRepository<Coupon, Long>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<Coupon> {
     Optional<Coupon> findByCodeIgnoreCase(String code);
 
     boolean existsByCodeIgnoreCase(String code);

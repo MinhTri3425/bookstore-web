@@ -29,6 +29,34 @@
                     </div>
                 </c:if>
 
+                <div class="card border-0 shadow-sm mb-4 text-dark">
+                    <div class="card-body">
+                        <form class="row g-3" method="get" action="${pageContext.request.contextPath}/admin/coupons">
+                            <div class="col-md-5">
+                                <label for="filter" class="form-label fw-bold small text-muted">Trạng thái thời hạn</label>
+                                <select id="filter" name="filter" class="form-select">
+                                    <option value="ALL" ${selectedFilter == 'ALL' ? 'selected' : ''}>Tất cả</option>
+                                    <option value="ACTIVE" ${selectedFilter == 'ACTIVE' ? 'selected' : ''}>Còn hiệu lực (Chưa hết hạn)</option>
+                                    <option value="EXPIRED" ${selectedFilter == 'EXPIRED' ? 'selected' : ''}>Hết hiệu lực (Đã hết hạn)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-5">
+                                <label for="sort" class="form-label fw-bold small text-muted">Sắp xếp theo</label>
+                                <select id="sort" name="sort" class="form-select">
+                                    <option value="id,desc" ${selectedSort == 'id,desc' ? 'selected' : ''}>Mới nhất</option>
+                                    <option value="endAt,asc" ${selectedSort == 'endAt,asc' ? 'selected' : ''}>Thời gian hết hạn: Gần nhất đến xa nhất</option>
+                                    <option value="endAt,desc" ${selectedSort == 'endAt,desc' ? 'selected' : ''}>Thời gian hết hạn: Xa nhất đến gần nhất</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button class="btn btn-primary w-100" type="submit">
+                                    <i class="fas fa-filter me-1"></i> Áp dụng
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
                 <div class="card border-0 shadow-sm text-dark">
                     <div class="card-header bg-white py-3">
                         <h5 class="mb-0 fw-bold text-muted small text-uppercase">Danh sách coupon hiện có</h5>
@@ -147,6 +175,40 @@
                             </tbody>
                         </table>
                     </div>
+                    <c:if test="${not empty couponPage and couponPage.totalPages > 1}">
+                        <div class="card-footer bg-white py-3 d-flex justify-content-between align-items-center">
+                            <div class="text-muted small">
+                                <c:set var="fromIndex" value="${couponPage.totalElements == 0 ? 0 : (couponPage.number * couponPage.size) + 1}" />
+                                <c:set var="toIndex"
+                                    value="${couponPage.totalElements == 0 ? 0 : ((couponPage.number + 1) * couponPage.size < couponPage.totalElements ? (couponPage.number + 1) * couponPage.size : couponPage.totalElements)}" />
+                                Hiển thị <strong>${fromIndex}-${toIndex}</strong> / ${couponPage.totalElements} coupon
+                            </div>
+                            <nav>
+                                <ul class="pagination pagination-sm mb-0">
+                                    <%-- Previous Page Button --%>
+                                    <li class="page-item ${couponPage.first ? 'disabled' : ''}">
+                                        <a class="page-link" href="?page=${couponPage.number - 1}&filter=${selectedFilter}&sort=${selectedSort}" aria-label="Previous">
+                                            <span aria-hidden="true">&laquo;</span>
+                                        </a>
+                                    </li>
+
+                                    <%-- Page Numbers --%>
+                                    <c:forEach var="pageIndex" begin="0" end="${couponPage.totalPages - 1}">
+                                        <li class="page-item ${pageIndex == couponPage.number ? 'active' : ''}">
+                                            <a class="page-link" href="?page=${pageIndex}&filter=${selectedFilter}&sort=${selectedSort}">${pageIndex + 1}</a>
+                                        </li>
+                                    </c:forEach>
+
+                                    <%-- Next Page Button --%>
+                                    <li class="page-item ${couponPage.last ? 'disabled' : ''}">
+                                        <a class="page-link" href="?page=${couponPage.number + 1}&filter=${selectedFilter}&sort=${selectedSort}" aria-label="Next">
+                                            <span aria-hidden="true">&raquo;</span>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </nav>
+                        </div>
+                    </c:if>
                 </div>
 
                 <div class="modal fade" id="deleteCouponModal" tabindex="-1" aria-hidden="true">
