@@ -99,6 +99,33 @@ body {
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
+.password-field {
+    position: relative;
+}
+
+.password-field input {
+    padding-right: 45px;
+}
+
+.password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 14px;
+    border: none;
+    background: transparent;
+    color: #6b7280;
+    padding: 0;
+    line-height: 1;
+    transform: translateY(-50%);
+    cursor: pointer;
+}
+
+.password-toggle:hover,
+.password-toggle:focus {
+    color: #3b82f6;
+    outline: none;
+}
+
 .btn-submit {
     width: 100%;
     padding: 14px;
