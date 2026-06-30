@@ -172,16 +172,24 @@ public class CartController {
     @PostMapping({ "/cart/add", "/Cart/add" })
     public String addToCart(@RequestParam("bookId") Long bookId,
             @RequestParam(value = "quantity", defaultValue = "1") int quantity,
+            @RequestParam(value = "redirectTo", required = false) String redirectTo,
             HttpSession session,
             Authentication authentication,
             RedirectAttributes redirectAttributes) {
 
         Long cartId = (Long) session.getAttribute(CART_SESSION_KEY);
         String customerEmail = resolveCustomerEmail(authentication, null);
-        CartDTO cart = cartService.addToCart(cartId, customerEmail, bookId, quantity);
-        session.setAttribute(CART_SESSION_KEY, cart.getId());
+        try {
+            CartDTO cart = cartService.addToCart(cartId, customerEmail, bookId, quantity);
+            session.setAttribute(CART_SESSION_KEY, cart.getId());
+            redirectAttributes.addFlashAttribute("successMessage", "Đã thêm sách vào giỏ hàng!");
+        } catch (IllegalArgumentException ex) {
+            redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+        }
 
-        redirectAttributes.addFlashAttribute("message", "Đã thêm sách vào giỏ hàng!");
+        if (redirectTo != null && !redirectTo.isBlank() && redirectTo.startsWith("/")) {
+            return "redirect:" + redirectTo;
+        }
         return "redirect:/books";
     }
 
@@ -197,7 +205,7 @@ public class CartController {
         CartDTO cart = cartService.removeFromCart(cartId, customerEmail, bookId);
         session.setAttribute(CART_SESSION_KEY, cart.getId());
 
-        redirectAttributes.addFlashAttribute("message", "Đã xóa sách khỏi giỏ hàng");
+        redirectAttributes.addFlashAttribute("successMessage", "Đã xóa sách khỏi giỏ hàng");
 
         return "redirect:/cart";
     }
@@ -215,9 +223,9 @@ public class CartController {
         try {
             CartDTO cart = cartService.updateItemQuantity(cartId, customerEmail, bookId, quantity);
             session.setAttribute(CART_SESSION_KEY, cart.getId());
-            redirectAttributes.addFlashAttribute("message", "Đã cập nhật số lượng sản phẩm");
+            redirectAttributes.addFlashAttribute("successMessage", "Đã cập nhật số lượng sản phẩm");
         } catch (IllegalArgumentException ex) {
-            redirectAttributes.addFlashAttribute("message", ex.getMessage());
+            redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
         }
 
         return "redirect:/cart";
@@ -231,12 +239,12 @@ public class CartController {
             RedirectAttributes redirectAttributes) {
 
         if (selectedBookIds == null || selectedBookIds.isEmpty()) {
-            redirectAttributes.addFlashAttribute("message", "Vui lòng chọn sản phẩm trước khi đặt hàng");
+            redirectAttributes.addFlashAttribute("errorMessage", "Vui lòng chọn sản phẩm trước khi đặt hàng");
             return "redirect:/cart";
         }
 
         if (authentication == null || authentication.getName() == null || authentication.getName().isBlank()) {
-            redirectAttributes.addFlashAttribute("message", "Vui lòng đăng nhập để đặt hàng");
+            redirectAttributes.addFlashAttribute("errorMessage", "Vui lòng đăng nhập để đặt hàng");
             return "redirect:/login";
         }
 
@@ -244,7 +252,7 @@ public class CartController {
 
         List<CartItemDTO> selectedItems = filterSelectedItems(cart, selectedBookIds);
         if (selectedItems.isEmpty()) {
-            redirectAttributes.addFlashAttribute("message", "Các sản phẩm đã chọn không hợp lệ");
+            redirectAttributes.addFlashAttribute("errorMessage", "Các sản phẩm đã chọn không hợp lệ");
             return "redirect:/cart";
         }
 
@@ -269,12 +277,12 @@ public class CartController {
             RedirectAttributes redirectAttributes) {
 
         if (selectedBookIds == null || selectedBookIds.isEmpty()) {
-            redirectAttributes.addFlashAttribute("message", "Vui lòng chọn sản phẩm trước khi đặt hàng");
+            redirectAttributes.addFlashAttribute("errorMessage", "Vui lòng chọn sản phẩm trước khi đặt hàng");
             return "redirect:/cart";
         }
 
         if (authentication == null || authentication.getName() == null || authentication.getName().isBlank()) {
-            redirectAttributes.addFlashAttribute("message", "Vui lòng đăng nhập để đặt hàng");
+            redirectAttributes.addFlashAttribute("errorMessage", "Vui lòng đăng nhập để đặt hàng");
             return "redirect:/login";
         }
 
@@ -282,7 +290,7 @@ public class CartController {
 
         List<CartItemDTO> selectedItems = filterSelectedItems(cart, selectedBookIds);
         if (selectedItems.isEmpty()) {
-            redirectAttributes.addFlashAttribute("message", "Các sản phẩm đã chọn không hợp lệ");
+            redirectAttributes.addFlashAttribute("errorMessage", "Các sản phẩm đã chọn không hợp lệ");
             return "redirect:/cart";
         }
 
@@ -323,12 +331,12 @@ public class CartController {
             RedirectAttributes redirectAttributes) {
 
         if (selectedBookIds == null || selectedBookIds.isEmpty()) {
-            redirectAttributes.addFlashAttribute("message", "Vui lòng chọn sản phẩm trước khi đặt hàng");
+            redirectAttributes.addFlashAttribute("errorMessage", "Vui lòng chọn sản phẩm trước khi đặt hàng");
             return "redirect:/cart";
         }
 
         if (authentication == null || authentication.getName() == null || authentication.getName().isBlank()) {
-            redirectAttributes.addFlashAttribute("message", "Vui lòng đăng nhập để đặt hàng");
+            redirectAttributes.addFlashAttribute("errorMessage", "Vui lòng đăng nhập để đặt hàng");
             return "redirect:/login";
         }
 
@@ -347,7 +355,7 @@ public class CartController {
             orderService.refreshOrderTotal(orderId);
 
         } catch (IllegalArgumentException ex) {
-            redirectAttributes.addFlashAttribute("message", ex.getMessage());
+            redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
             return "redirect:/cart";
         }
 
@@ -363,7 +371,7 @@ public class CartController {
                         .createCheckoutPaymentUrl(orderId, orderPaymentAmount, clientIp, returnUrl);
                 return "redirect:" + paymentUrl;
             } catch (Exception ex) {
-                redirectAttributes.addFlashAttribute("message", "Lỗi thanh toán: " + ex.getMessage());
+                redirectAttributes.addFlashAttribute("errorMessage", "Lỗi thanh toán: " + ex.getMessage());
                 return "redirect:/cart";
             }
         }

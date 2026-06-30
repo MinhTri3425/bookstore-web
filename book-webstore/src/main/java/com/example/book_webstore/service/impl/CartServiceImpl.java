@@ -116,7 +116,12 @@ public class CartServiceImpl implements CartService {
                     return newItem;
                 });
 
-        item.setQuantity(item.getQuantity() + safeQuantity);
+        int newQuantity = item.getQuantity() + safeQuantity;
+        if (newQuantity > book.getStock()) {
+            throw new IllegalArgumentException("Số lượng sách \"" + book.getTitle() + "\" vượt quá số lượng trong kho (" + book.getStock() + " sản phẩm có sẵn)");
+        }
+
+        item.setQuantity(newQuantity);
         cartItemRepository.save(item);
         return toCartDTO(cartRepository.findById(cart.getId()).orElseThrow());
     }
@@ -137,6 +142,11 @@ public class CartServiceImpl implements CartService {
         Cart cart = getOrCreateEntity(cartId, customerEmail);
         CartItem item = cartItemRepository.findByCartIdAndBookId(cart.getId(), bookId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sản phẩm trong giỏ hàng"));
+
+        Book book = item.getBook();
+        if (quantity > book.getStock()) {
+            throw new IllegalArgumentException("Số lượng cập nhật cho \"" + book.getTitle() + "\" vượt quá số lượng trong kho (" + book.getStock() + " sản phẩm có sẵn)");
+        }
 
         item.setQuantity(quantity);
         cartItemRepository.save(item);
@@ -461,6 +471,7 @@ public class CartServiceImpl implements CartService {
         dto.setTitle(hydrated.getTitle());
         dto.setPrice(hydrated.getPrice());
         dto.setDescription(hydrated.getDescription());
+        dto.setStock(hydrated.getStock());
         dto.setImages(hydrated.getImages().stream()
                 .sorted(Comparator.comparingInt(BookImage::getSortOrder))
                 .map(img -> {
