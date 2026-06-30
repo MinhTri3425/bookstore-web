@@ -125,7 +125,7 @@
                                         <input class="form-check-input ms-0 me-2" type="checkbox" id="active"
                                             name="active" value="true" ${coupon.active ? 'checked' : '' }>
                                         <label class="form-check-label fw-bold text-success" for="active">Kích hoạt
-                                            Coupon
+                                            mã
                                             ngay</label>
                                     </div>
                                 </div>
@@ -168,7 +168,7 @@
 
                                 <div class="col-12 d-flex gap-2 pt-3 border-top mt-4">
                                     <button type="submit" class="btn btn-primary px-5 py-2 shadow">
-                                        <i class="fas fa-save me-2"></i>Lưu cấu hình Coupon
+                                        <i class="fas fa-save me-2"></i>Lưu cấu hình
                                     </button>
                                     <a href="${pageContext.request.contextPath}/admin/coupons"
                                         class="btn btn-light border px-4 py-2">Hủy bỏ</a>
