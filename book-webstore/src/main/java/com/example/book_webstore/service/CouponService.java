@@ -9,6 +9,8 @@ import com.example.book_webstore.dto.CouponValidationDTO;
 public interface CouponService {
     List<CouponDTO> getAllCoupons();
 
+    org.springframework.data.domain.Page<CouponDTO> getAllCoupons(org.springframework.data.domain.Pageable pageable);
+
     CouponDTO getCouponById(Long id);
 
     CouponDTO createCoupon(CouponDTO couponDTO);

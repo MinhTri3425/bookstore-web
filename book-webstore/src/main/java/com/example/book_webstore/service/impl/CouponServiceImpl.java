@@ -81,6 +81,13 @@ public class CouponServiceImpl implements CouponService {
 
     @Override
     @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<CouponDTO> getAllCoupons(org.springframework.data.domain.Pageable pageable) {
+        return couponRepository.findAll(pageable)
+                .map(this::toCouponDto);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public CouponDTO getCouponById(Long id) {
         Coupon coupon = couponRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Coupon not found"));

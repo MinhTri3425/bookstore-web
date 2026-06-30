@@ -147,6 +147,40 @@
                             </tbody>
                         </table>
                     </div>
+                    <c:if test="${not empty couponPage and couponPage.totalPages > 1}">
+                        <div class="card-footer bg-white py-3 d-flex justify-content-between align-items-center">
+                            <div class="text-muted small">
+                                <c:set var="fromIndex" value="${couponPage.totalElements == 0 ? 0 : (couponPage.number * couponPage.size) + 1}" />
+                                <c:set var="toIndex"
+                                    value="${couponPage.totalElements == 0 ? 0 : ((couponPage.number + 1) * couponPage.size < couponPage.totalElements ? (couponPage.number + 1) * couponPage.size : couponPage.totalElements)}" />
+                                Hiển thị <strong>${fromIndex}-${toIndex}</strong> / ${couponPage.totalElements} coupon
+                            </div>
+                            <nav>
+                                <ul class="pagination pagination-sm mb-0">
+                                    <%-- Previous Page Button --%>
+                                    <li class="page-item ${couponPage.first ? 'disabled' : ''}">
+                                        <a class="page-link" href="?page=${couponPage.number - 1}" aria-label="Previous">
+                                            <span aria-hidden="true">&laquo;</span>
+                                        </a>
+                                    </li>
+
+                                    <%-- Page Numbers --%>
+                                    <c:forEach var="pageIndex" begin="0" end="${couponPage.totalPages - 1}">
+                                        <li class="page-item ${pageIndex == couponPage.number ? 'active' : ''}">
+                                            <a class="page-link" href="?page=${pageIndex}">${pageIndex + 1}</a>
+                                        </li>
+                                    </c:forEach>
+
+                                    <%-- Next Page Button --%>
+                                    <li class="page-item ${couponPage.last ? 'disabled' : ''}">
+                                        <a class="page-link" href="?page=${couponPage.number + 1}" aria-label="Next">
+                                            <span aria-hidden="true">&raquo;</span>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </nav>
+                        </div>
+                    </c:if>
                 </div>
 
                 <div class="modal fade" id="deleteCouponModal" tabindex="-1" aria-hidden="true">
