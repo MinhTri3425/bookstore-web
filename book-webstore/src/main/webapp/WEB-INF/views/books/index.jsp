@@ -43,6 +43,20 @@
     </section>
 
     <div class="container py-5">
+        <%-- Hiển thị thông báo nếu có --%>
+        <c:if test="${not empty successMessage}">
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                ${successMessage}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        </c:if>
+        <c:if test="${not empty errorMessage}">
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                ${errorMessage}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        </c:if>
+
         <div class="row">
             <div class="col-lg-3 mb-4">
                 <div class="card shadow-sm border-0 filter-card">

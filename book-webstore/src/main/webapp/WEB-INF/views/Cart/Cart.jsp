@@ -43,6 +43,18 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     </c:if>
+    <c:if test="${not empty successMessage}">
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            ${successMessage}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    </c:if>
+    <c:if test="${not empty errorMessage}">
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            ${errorMessage}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    </c:if>
 
     <section class="card shadow-sm p-4">
         <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
@@ -93,11 +105,14 @@
 
                         <div class="col-md-6 mb-2 mb-md-0">
                             <h5 class="mb-1"><%= item.getBook() == null ? "Sách không xác định" : item.getBook().getTitle() %></h5>
-                            <p class="mb-0 text-muted">Số lượng: <strong><%= item.getQuantity() %></strong></p>
-                            <form method="post" action="${pageContext.request.contextPath}/cart/update" class="d-flex align-items-center gap-2 mt-2">
+                            <p class="mb-0 text-muted">
+                                Số lượng: <strong><%= item.getQuantity() %></strong>
+                                <span class="ms-2 badge bg-light text-secondary border">Kho: <%= item.getBook() == null || item.getBook().getStock() == null ? 0 : item.getBook().getStock() %></span>
+                            </p>
+                            <form method="post" action="${pageContext.request.contextPath}/cart/update" class="d-flex align-items-center gap-2 mt-2 update-quantity-form">
                                 <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
                                 <input type="hidden" name="bookId" value="<%= item.getBook() == null ? "" : item.getBook().getId() %>">
-                                <input type="number" name="quantity" min="1" value="<%= item.getQuantity() %>" class="form-control form-control-sm" style="max-width: 90px;">
+                                <input type="number" name="quantity" min="1" max="<%= item.getBook() == null || item.getBook().getStock() == null ? 9999 : item.getBook().getStock() %>" value="<%= item.getQuantity() %>" class="form-control form-control-sm quantity-input" style="max-width: 90px;">
                                 <button type="submit" class="btn btn-outline-primary btn-sm">Cập nhật</button>
                             </form>
                             <p class="mb-0 text-primary">Đơn giá: <strong><%= priceFormat.format(unitPrice) %> VND</strong></p>
@@ -202,6 +217,19 @@
                 }
             });
         }
+
+        const updateForms = document.querySelectorAll('.update-quantity-form');
+        updateForms.forEach((form) => {
+            form.addEventListener('submit', function (event) {
+                const input = form.querySelector('.quantity-input');
+                const quantity = parseInt(input.value || '0', 10);
+                const max = parseInt(input.getAttribute('max') || '9999', 10);
+                if (quantity > max) {
+                    event.preventDefault();
+                    alert('Số lượng cập nhật vượt quá số lượng còn lại trong kho (' + max + ' sản phẩm có sẵn).');
+                }
+            });
+        });
 
         updateSelectedTotal();
     })();
