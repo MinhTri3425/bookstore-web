@@ -55,9 +55,12 @@
                                         <label for="username">Tên đăng nhập</label>
                                     </div>
                                     
-                                    <div class="form-floating mb-4">
+                                    <div class="form-floating password-field mb-4">
                                         <input type="password" class="form-control" id="password" name="password" placeholder="Mật khẩu" required>
                                         <label for="password">Mật khẩu</label>
+                                        <button type="button" class="password-toggle" data-target="password" aria-label="Hiện mật khẩu">
+                                            <i class="fa-regular fa-eye"></i>
+                                        </button>
                                     </div>
                                     
                                     <div class="d-grid mb-4">
@@ -94,5 +97,19 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.querySelectorAll('.password-toggle').forEach(function (button) {
+            button.addEventListener('click', function () {
+                var input = document.getElementById(button.dataset.target);
+                var icon = button.querySelector('i');
+                var isHidden = input.type === 'password';
+
+                input.type = isHidden ? 'text' : 'password';
+                button.setAttribute('aria-label', isHidden ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
+                icon.classList.toggle('fa-eye', !isHidden);
+                icon.classList.toggle('fa-eye-slash', isHidden);
+            });
+        });
+    </script>
 </body>
 </html>

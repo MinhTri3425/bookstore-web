@@ -6,6 +6,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Đăng Ký - Book Webstore</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" type="text/css" href="/css/register.css">
 </head>
 <body>
@@ -42,7 +43,12 @@
             
             <div class="form-group">
                 <label for="password">Mật khẩu</label>
-                <input type="password" id="password" name="password" placeholder="Tạo mật khẩu an toàn" required />
+                <div class="password-field">
+                    <input type="password" id="password" name="password" placeholder="Tạo mật khẩu an toàn" required />
+                    <button type="button" class="password-toggle" data-target="password" aria-label="Hiện mật khẩu">
+                        <i class="fa-regular fa-eye"></i>
+                    </button>
+                </div>
             </div>
             
             <button type="submit" class="btn-submit">Đăng Ký Ngay</button>
@@ -52,5 +58,19 @@
             Đã có tài khoản? <a href="/login">Đăng nhập tại đây</a>
         </div>
     </div>
+    <script>
+        document.querySelectorAll('.password-toggle').forEach(function (button) {
+            button.addEventListener('click', function () {
+                var input = document.getElementById(button.dataset.target);
+                var icon = button.querySelector('i');
+                var isHidden = input.type === 'password';
+
+                input.type = isHidden ? 'text' : 'password';
+                button.setAttribute('aria-label', isHidden ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
+                icon.classList.toggle('fa-eye', !isHidden);
+                icon.classList.toggle('fa-eye-slash', isHidden);
+            });
+        });
+    </script>
 </body>
 </html>
